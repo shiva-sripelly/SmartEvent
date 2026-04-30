@@ -42,7 +42,8 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     new_user = User(
         username=user.username,
         email=user.email,
-        hashed_password=hash_password(user.password)
+        hashed_password=hash_password(user.password),
+        role="USER"
     )
 
     db.add(new_user)
@@ -78,14 +79,18 @@ SmartEvent Team
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
 
-    # 🔥 FIXED: single secure error message
+
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
         )
 
-    token = create_access_token({"sub": db_user.email})
+    token = create_access_token({
+        "sub": db_user.email,
+        "role": db_user.role,
+        "user_id": db_user.id
+    })
 
     send_email(
         to_email=db_user.email,

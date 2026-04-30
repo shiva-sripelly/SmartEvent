@@ -12,6 +12,11 @@ import TicketsPage from "./pages/TicketsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import AdminPage from "./pages/AdminPage";
+import OrganizerPage from "./pages/OrganizerPage";
+import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
+import UsersOverviewPage from "./pages/UsersOverviewPage";
+import EventsOverviewPage from "./pages/EventsOverviewPage";
+import BookingsOverviewPage from "./pages/BookingsOverviewPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -107,10 +112,55 @@ export default function App() {
           />
 
           <Route
+            path="/organizer"
+            element={
+              <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+                <OrganizerPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminAnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <UsersOverviewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/events"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <EventsOverviewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/bookings"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <BookingsOverviewPage />
               </ProtectedRoute>
             }
           />

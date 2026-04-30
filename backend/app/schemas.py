@@ -15,6 +15,7 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: EmailStr
+    role: str
 
     class Config:
         from_attributes = True
@@ -35,7 +36,9 @@ class EventCreate(BaseModel):
 class EventResponse(EventCreate):
     id: int
     created_by: Optional[int] = None
+    organizer_id: Optional[int] = None
     status: Optional[str] = None
+    event_status: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -62,6 +65,12 @@ class TicketResponse(BaseModel):
     booking_id: int
     ticket_code: str
     qr_code_url: str
+    event_title: str
+    event_location: Optional[str] = None
+    event_date: datetime
+    ticket_quantity: int
+    total_price: float
+    booking_status: str
 
     class Config:
         from_attributes = True

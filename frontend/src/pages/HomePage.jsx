@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
-import EventCard from "../components/EventCard";
 const categories = ["Music", "Tech", "Sports", "Business", "Comedy", "Workshops"];
 
 export default function HomePage() {
@@ -9,6 +8,7 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
   const [filterType, setFilterType] = useState("ACTIVE");
+  const [sortOption, setSortOption] = useState("NEWEST");
   const fetchEvents = async () => {
     const res = await API.get("/events/");
     setEvents(res.data);
@@ -63,48 +63,86 @@ export default function HomePage() {
           />
           <button onClick={handleSearch}>Search</button>
         </div>
-         <div className="filter-toggle">
-  <button
-    className={filterType === "ACTIVE" ? "active-toggle" : ""}
-    onClick={() => setFilterType("ACTIVE")}
-  >
-    Active
-  </button>
+        <div className="filter-actions">
+          <div className="filter-toggle">
+            <button
+              className={filterType === "ACTIVE" ? "active-toggle" : ""}
+              onClick={() => setFilterType("ACTIVE")}
+            >
+              Active
+            </button>
 
-  <button
-    className={filterType === "ALL" ? "active-toggle" : ""}
-    onClick={() => setFilterType("ALL")}
-  >
-    All
-  </button>
+            <button
+              className={filterType === "ALL" ? "active-toggle" : ""}
+              onClick={() => setFilterType("ALL")}
+            >
+              All
+            </button>
 
-  <button
-    className={filterType === "CANCELLED" ? "active-toggle" : ""}
-    onClick={() => setFilterType("CANCELLED")}
-  >
-    Cancelled
-  </button>
-</div>
+            <button
+              className={filterType === "CANCELLED" ? "active-toggle" : ""}
+              onClick={() => setFilterType("CANCELLED")}
+            >
+              Cancelled
+            </button>
+          </div>
+
+          <div className="sort-select-wrapper">
+            <label htmlFor="sort-select">Sort:</label>
+            <select
+              id="sort-select"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+            >
+              <option value="NEWEST">Newest First</option>
+              <option value="OLDEST">Oldest First</option>
+              <option value="LOCATION_ASC">Location A-Z</option>
+              <option value="LOCATION_DESC">Location Z-A</option>
+              <option value="PRICE_LOW">Price Low-High</option>
+              <option value="PRICE_HIGH">Price High-Low</option>
+            </select>
+          </div>
+        </div>
         <div className="premium-event-grid">
           {events
   .filter((event) => {
     if (filterType === "ACTIVE")
-      return (
-        event.status === "ACTIVE" &&
-        new Date(event.event_date) > new Date()
-      );
+      return ["UPCOMING", "ONGOING"].includes(event.status);
 
     if (filterType === "CANCELLED")
-      return event.status === "CANCELLED" || event.status === "INACTIVE";
+      return event.status === "CANCELLED";
 
-    return event.status !== "CANCELLED" && event.status !== "INACTIVE";
+    return true;
+  })
+  .slice()
+  .sort((a, b) => {
+    const createdA = new Date(a.created_at || a.event_date || 0).getTime();
+    const createdB = new Date(b.created_at || b.event_date || 0).getTime();
+
+    if (sortOption === "NEWEST") {
+      return createdB - createdA;
+    }
+    if (sortOption === "OLDEST") {
+      return createdA - createdB;
+    }
+    if (sortOption === "LOCATION_ASC") {
+      return (a.location || "").localeCompare(b.location || "");
+    }
+    if (sortOption === "LOCATION_DESC") {
+      return (b.location || "").localeCompare(a.location || "");
+    }
+    if (sortOption === "PRICE_LOW") {
+      return (a.ticket_price || 0) - (b.ticket_price || 0);
+    }
+    if (sortOption === "PRICE_HIGH") {
+      return (b.ticket_price || 0) - (a.ticket_price || 0);
+    }
+
+    return createdB - createdA;
   })
   .map((event) => {
-            const isExpired =
-              event.status === "EXPIRED" ||
-              new Date(event.event_date) < new Date();
-            const isCancelled =
-              event.status === "CANCELLED" || event.status === "INACTIVE";
+            const isExpired = event.status === "COMPLETED";
+            const isCancelled = event.status === "CANCELLED";
 
             return (
               <div
@@ -122,10 +160,8 @@ export default function HomePage() {
                     alt={event.title}
                   />
 
-                  {/* Expired Badge */}
                   {isExpired && <span className="expired-badge">Expired</span>}
 
-                  {/* Cancelled / Inactive Badge */}
                   {isCancelled && (
                     <span className="cancelled-badge">Cancelled</span>
                   )}

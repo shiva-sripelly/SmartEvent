@@ -1,10 +1,8 @@
 import { Link } from "react-router-dom";
 
 export default function EventCard({ event }) {
-  const isExpired =
-    event.status === "EXPIRED" || new Date(event.event_date) < new Date();
-  const isCancelled =
-    event.status === "CANCELLED" || event.status === "INACTIVE";
+  const isExpired = event.status === "COMPLETED";
+  const isCancelled = event.status === "CANCELLED";
 
   return (
     <div className={`premium-event-card ${isExpired || isCancelled ? "expired-card" : ""}`}>

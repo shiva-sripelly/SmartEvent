@@ -1,9 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
+from sqlalchemy.orm import relationship, synonym
 from datetime import datetime
 from app.database import Base
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy import ForeignKey
 
 class User(Base):
     __tablename__ = "users"
@@ -12,8 +10,9 @@ class User(Base):
     username = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="USER")
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
 class Event(Base):
     __tablename__ = "events"
 
@@ -27,10 +26,11 @@ class Event(Base):
     banner_image = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
     available_tickets = Column(Integer, default=100)
-    status = Column(String(20), default="ACTIVE")
+    status = Column(String(20), default="UPCOMING")
+    event_status = synonym("status")
     created_by = Column(Integer, ForeignKey("users.id"))
-    
-    
+    organizer_id = synonym("created_by")
+
 class Booking(Base):
     __tablename__ = "bookings"
 
@@ -44,7 +44,7 @@ class Booking(Base):
 
     user = relationship("User")
     event = relationship("Event")
-    
+
 class Ticket(Base):
     __tablename__ = "tickets"
 
@@ -55,7 +55,7 @@ class Ticket(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     booking = relationship("Booking")
-    
+
 class Notification(Base):
     __tablename__ = "notifications"
 

@@ -32,8 +32,8 @@ def create_checkout_session(
         raise HTTPException(status_code=404, detail="Event not found")
     
     now = datetime.now()
-    if event.status != "ACTIVE" or event.event_date < now:
-        raise HTTPException(status_code=400, detail="This event is expired. Booking is closed.")
+    if event.status in ["CANCELLED", "COMPLETED"] or event.event_date < now:
+        raise HTTPException(status_code=400, detail="This event is no longer available for booking.")
     
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Invalid ticket quantity")
@@ -103,7 +103,7 @@ async def stripe_webhook(request: Request):
                 return {"status": "user or event not found"}
 
             now = datetime.now()
-            if event_obj.status != "ACTIVE" or event_obj.event_date < now:
+            if event_obj.status in ["CANCELLED", "COMPLETED"] or event_obj.event_date < now:
                 return {"status": "event expired or inactive"}
 
             if event_obj.available_tickets < quantity:

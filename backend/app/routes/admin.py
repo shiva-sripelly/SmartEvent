@@ -3,16 +3,17 @@ from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timedelta
 import shutil
+
+from sqlalchemy import func
 
 from app.utils.email import send_email
 from app.database import get_db
-from app.models import Event, User, Booking
-from app.schemas import EventResponse
-from app.core.security import get_current_user
+from app.models import Event, User, Booking, Notification
+from app.schemas import EventResponse, BookingResponse, UserResponse
+from app.core.security import get_current_user, require_roles
 from app.utils.event_status import expire_past_events
-from sqlalchemy import func
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -32,7 +33,6 @@ def save_upload_file(upload_file: UploadFile) -> str:
 
 
 def parse_event_date(date_string: str) -> datetime:
-    # Accept several common datetime formats from frontend and manual entry.
     formats = [
         "%Y-%m-%dT%H:%M",
         "%Y-%m-%dT%H:%M:%S",
@@ -68,7 +68,7 @@ def add_event(
     ticket_price: float = Form(...),
     banner_image: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("ORGANIZER"))
 ):
     banner_url = save_upload_file(banner_image)
     parsed_event_date = parse_event_date(event_date)
@@ -82,7 +82,7 @@ def add_event(
         ticket_price=ticket_price,
         banner_image=banner_url,
         created_by=current_user.id,
-        status="ACTIVE"
+        status="UPCOMING"
     )
 
     db.add(new_event)
@@ -122,14 +122,14 @@ def update_event(
     ticket_price: float = Form(...),
     banner_image: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
 ):
     event = db.query(Event).filter(Event.id == event_id).first()
 
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    if event.created_by != current_user.id:
+    if current_user.role == "ORGANIZER" and event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     event.title = title
@@ -145,46 +145,135 @@ def update_event(
     db.commit()
     db.refresh(event)
 
+    attendees = (
+        db.query(User)
+        .join(Booking, Booking.user_id == User.id)
+        .filter(Booking.event_id == event.id)
+        .distinct()
+        .all()
+    )
+
+    for attendee in attendees:
+        notification_message = f"""
+Hello {attendee.username},
+
+The event you booked has been updated.
+
+Event: {event.title}
+Location: {event.location}
+Date: {event.event_date}
+Price: ₹{event.ticket_price}
+
+Please review the updated event details in your SmartEvent account.
+
+Regards,
+SmartEvent Team
+"""
+
+        notification = Notification(
+            user_id=attendee.id,
+            title=f"Event Updated - {event.title}",
+            message=notification_message,
+            type="EVENT"
+        )
+        db.add(notification)
+
+        send_email(
+            to_email=attendee.email,
+            subject=f"Event Updated - {event.title}",
+            message=notification_message
+        )
+
+    db.commit()
+
     return event
 
 
 @router.get("/events", response_model=List[EventResponse])
 def get_admin_events(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
 ):
     expire_past_events(db)
+    if current_user.role == "ADMIN":
+        return db.query(Event).all()
     return db.query(Event).filter(Event.created_by == current_user.id).all()
 
 
-@router.put("/events/{event_id}/cancel")
-def cancel_event(
+@router.get("/events/{event_id}/bookings", response_model=List[BookingResponse])
+def get_event_bookings(
     event_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
 ):
     event = db.query(Event).filter(Event.id == event_id).first()
 
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    if event.created_by != current_user.id:
+    if current_user.role == "ORGANIZER" and event.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view bookings for this event")
+
+    return db.query(Booking).filter(Booking.event_id == event_id).all()
+
+
+@router.get("/events/{event_id}/insights")
+def get_event_insights(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
+):
+    event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.role == "ORGANIZER" and event.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view insights for this event")
+
+    total_tickets = db.query(func.sum(Booking.ticket_quantity)).filter(Booking.event_id == event_id).scalar() or 0
+    total_revenue = db.query(func.sum(Booking.total_price)).filter(Booking.event_id == event_id).scalar() or 0
+    booking_count = db.query(Booking).filter(Booking.event_id == event_id).count()
+
+    return {
+        "event_id": event.id,
+        "title": event.title,
+        "total_tickets_sold": total_tickets,
+        "remaining_tickets": event.available_tickets,
+        "total_revenue": total_revenue,
+        "booking_count": booking_count,
+        "status": event.status,
+    }
+
+
+@router.put("/events/{event_id}/cancel")
+def cancel_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
+):
+    event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.role == "ORGANIZER" and event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
 
     event.status = "CANCELLED"
     db.commit()
 
-    bookings = db.query(Booking).filter(Booking.event_id == event_id).all()
+    attendees = (
+        db.query(User)
+        .join(Booking, Booking.user_id == User.id)
+        .filter(Booking.event_id == event_id)
+        .distinct()
+        .all()
+    )
 
-    for booking in bookings:
-        user = db.query(User).filter(User.id == booking.user_id).first()
-
-        if user:
-            send_email(
-                to_email=user.email,
-                subject=f"Event Cancelled - {event.title}",
-                message=f"""
-Hello {user.username},
+    for attendee in attendees:
+        notification_message = f"""
+Hello {attendee.username},
 
 We regret to inform you that the following event has been cancelled:
 
@@ -193,7 +282,6 @@ Event Details:
 Event: {event.title}
 Location: {event.location}
 Date: {event.event_date}
-Tickets Booked: {booking.ticket_quantity}
 -------------------------
 
 Refund (if applicable) will be processed soon.
@@ -203,7 +291,22 @@ We apologize for the inconvenience.
 Regards,
 SmartEvent Team
 """
-            )
+
+        notification = Notification(
+            user_id=attendee.id,
+            title=f"Event Cancelled - {event.title}",
+            message=notification_message,
+            type="EVENT"
+        )
+        db.add(notification)
+
+        send_email(
+            to_email=attendee.email,
+            subject=f"Event Cancelled - {event.title}",
+            message=notification_message
+        )
+
+    db.commit()
 
     return {"message": "Event cancelled and users notified"}
 
@@ -215,13 +318,90 @@ def get_admin_stats(
 ):
     expire_past_events(db)
 
+    if current_user.role == "ADMIN":
+        total_users = db.query(User).count()
+        total_events = db.query(Event).count()
+        total_bookings = db.query(Booking).count()
+        total_revenue = db.query(func.sum(Booking.total_price)).scalar() or 0
+        total_tickets = db.query(func.sum(Booking.ticket_quantity)).scalar() or 0
+
+        daily_sales = [
+            {
+                "date": (datetime.utcnow() - timedelta(days=days)).date().isoformat(),
+                "tickets_sold": db.query(func.sum(Booking.ticket_quantity)).filter(
+                    func.date(Booking.created_at) == (datetime.utcnow() - timedelta(days=days)).date()
+                ).scalar() or 0,
+                "revenue": db.query(func.sum(Booking.total_price)).filter(
+                    func.date(Booking.created_at) == (datetime.utcnow() - timedelta(days=days)).date()
+                ).scalar() or 0,
+            }
+            for days in range(6, -1, -1)
+        ]
+
+        popular_events = [
+            {
+                "event_id": event.id,
+                "title": event.title,
+                "tickets_sold": db.query(func.sum(Booking.ticket_quantity)).filter(Booking.event_id == event.id).scalar() or 0,
+            }
+            for event in db.query(Event).order_by(Event.event_date.desc()).limit(10).all()
+        ]
+
+        top_revenue_events = [
+            {
+                "event_id": event.id,
+                "title": event.title,
+                "revenue": db.query(func.sum(Booking.total_price)).filter(Booking.event_id == event.id).scalar() or 0,
+            }
+            for event in db.query(Event).order_by(Event.event_date.desc()).limit(10).all()
+        ]
+
+        upcoming_events = db.query(Event).filter(
+            Event.status == "UPCOMING"
+        ).count()
+
+        ongoing_events = db.query(Event).filter(
+            Event.status == "ONGOING"
+        ).count()
+
+        cancelled_events = db.query(Event).filter(
+            Event.status == "CANCELLED"
+        ).count()
+
+        completed_events = db.query(Event).filter(
+            Event.status == "COMPLETED"
+        ).count()
+
+        active_events = upcoming_events + ongoing_events
+
+        return {
+            "total_users": total_users,
+            "total_events": total_events,
+            "active_events": active_events,
+            "upcoming_events": upcoming_events,
+            "ongoing_events": ongoing_events,
+            "cancelled_events": cancelled_events,
+            "completed_events": completed_events,
+            "total_bookings": total_bookings,
+            "total_revenue": total_revenue,
+            "total_tickets_sold": total_tickets,
+            "daily_sales": daily_sales,
+            "popular_events": popular_events,
+            "top_revenue_events": top_revenue_events,
+        }
+
     total_events = db.query(Event).filter(
         Event.created_by == current_user.id
     ).count()
 
-    active_events = db.query(Event).filter(
+    upcoming_events = db.query(Event).filter(
         Event.created_by == current_user.id,
-        Event.status == "ACTIVE"
+        Event.status == "UPCOMING"
+    ).count()
+
+    ongoing_events = db.query(Event).filter(
+        Event.created_by == current_user.id,
+        Event.status == "ONGOING"
     ).count()
 
     cancelled_events = db.query(Event).filter(
@@ -237,10 +417,45 @@ def get_admin_stats(
         Event.created_by == current_user.id
     ).scalar() or 0
 
+    completed_events = db.query(Event).filter(
+        Event.created_by == current_user.id,
+        Event.status == "COMPLETED"
+    ).count()
+
+    active_events = upcoming_events + ongoing_events
+
     return {
         "total_events": total_events,
         "active_events": active_events,
+        "upcoming_events": upcoming_events,
+        "ongoing_events": ongoing_events,
         "cancelled_events": cancelled_events,
+        "completed_events": completed_events,
         "total_bookings": total_bookings,
         "total_revenue": total_revenue
     }
+
+
+@router.get("/users", response_model=List[UserResponse])
+def get_all_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN"))
+):
+    return db.query(User).all()
+
+
+@router.get("/all-events", response_model=List[EventResponse])
+def get_all_events(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN"))
+):
+    expire_past_events(db)
+    return db.query(Event).all()
+
+
+@router.get("/all-bookings", response_model=List[BookingResponse])
+def get_all_bookings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ADMIN"))
+):
+    return db.query(Booking).all()

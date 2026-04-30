@@ -32,10 +32,8 @@ export default function EventDetailsPage() {
 
   if (!event) return <h2>Loading event details...</h2>;
 
-  const isExpired =
-    event.status === "EXPIRED" || new Date(event.event_date) < new Date();
-  const isCancelled =
-    event.status === "CANCELLED" || event.status === "INACTIVE";
+  const isExpired = event.status === "COMPLETED";
+  const isCancelled = event.status === "CANCELLED";
   const eventDate = new Date(event.event_date).toLocaleDateString("en-IN", {
     weekday: "short",
     day: "numeric",

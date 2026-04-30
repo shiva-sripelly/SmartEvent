@@ -13,9 +13,11 @@ export function AuthProvider({ children }) {
     try {
       const res = await API.get("/auth/profile");
       setUser(res.data);
+      return res.data;
     } catch {
       localStorage.removeItem("token");
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -32,7 +34,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const res = await API.post("/auth/login", { email, password });
     localStorage.setItem("token", res.data.access_token);
-    await fetchProfile();
+    return await fetchProfile();
   };
 
   const register = async (username, email, password) => {

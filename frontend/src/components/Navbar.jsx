@@ -51,6 +51,14 @@ export default function Navbar() {
           )}
         </Link>
 
+        {user && user.role === "ADMIN" && (
+          <Link to="/admin">Admin Panel</Link>
+        )}
+
+        {user && user.role === "ORGANIZER" && (
+          <Link to="/organizer">Organizer Dashboard</Link>
+        )}
+
         {user && (
           <>
             <span className="user-name">Hi, {user.username}</span>

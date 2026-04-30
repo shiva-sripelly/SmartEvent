@@ -5,7 +5,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models import Event, Booking, User, Ticket, Notification
 from app.schemas import BookingCreate, BookingResponse
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_roles
 from app.utils.event_status import expire_past_events
 from app.utils.qr import generate_qr_code
 from app.utils.email import send_email
@@ -27,10 +27,10 @@ def book_ticket(
         raise HTTPException(status_code=404, detail="Event not found")
 
     now = datetime.now()
-    if event.status != "ACTIVE" or event.event_date < now:
+    if event.status in ["CANCELLED", "COMPLETED"] or event.event_date < now:
         raise HTTPException(
             status_code=400,
-            detail="This event has expired. Booking is closed."
+            detail="This event is no longer available for booking."
         )
 
     if booking.ticket_quantity <= 0:
@@ -136,3 +136,28 @@ def my_bookings(
     current_user: User = Depends(get_current_user)
 ):
     return db.query(Booking).filter(Booking.user_id == current_user.id).all()
+
+
+@router.get("/organizer", response_model=List[BookingResponse])
+def organizer_bookings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
+):
+    return db.query(Booking).join(Event).filter(Event.created_by == current_user.id).all()
+
+
+@router.get("/event/{event_id}", response_model=List[BookingResponse])
+def event_bookings(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("ORGANIZER", "ADMIN"))
+):
+    event = db.query(Event).filter(Event.id == event_id).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.role == "ORGANIZER" and event.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view bookings for this event")
+
+    return db.query(Booking).filter(Booking.event_id == event_id).all()

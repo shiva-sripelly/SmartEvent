@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-export default function AdminPage() {
+export default function OrganizerPage() {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
   const [events, setEvents] = useState([]);
+  const [eventInsights, setEventInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -24,9 +26,9 @@ export default function AdminPage() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [existingBannerUrl, setExistingBannerUrl] = useState(null);
 
-  const handleAdminLogout = () => {
+  const handleLogout = () => {
     logout();
-    navigate("/admin-login");
+    navigate("/login");
   };
 
   const fetchEvents = async () => {
@@ -39,8 +41,20 @@ export default function AdminPage() {
     setStats(res.data);
   };
 
+  const fetchEventInsights = async (eventId) => {
+    setInsightsLoading(true);
+    try {
+      const res = await API.get(`/admin/events/${eventId}/insights`);
+      setEventInsights(res.data);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to load event insights");
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (user && user.role !== "ADMIN" && user.role !== "ORGANIZER") {
+    if (user && user.role !== "ORGANIZER") {
       navigate("/");
       return;
     }
@@ -154,31 +168,14 @@ export default function AdminPage() {
     <div className="page-container">
       <div className="admin-header">
         <div>
-          <h2>{user?.role === "ADMIN" ? "Admin Dashboard" : "Organizer Dashboard"}</h2>
-          <p className="admin-greeting">Hi {user?.username || (user?.role === "ADMIN" ? "Admin" : "Organizer")}</p>
+          <h2>Organizer Dashboard</h2>
+          <p className="admin-greeting">Hi {user?.username || "Organizer"}</p>
         </div>
 
-        <button className="admin-logout-btn" onClick={handleAdminLogout}>
+        <button className="admin-logout-btn" onClick={handleLogout}>
           Logout
         </button>
       </div>
-
-      {user?.role === "ADMIN" && (
-        <div className="admin-quick-links">
-          <Link className="admin-quick-link" to="/admin/analytics">
-            Platform Analytics
-          </Link>
-          <Link className="admin-quick-link" to="/admin/users">
-            Users Overview
-          </Link>
-          <Link className="admin-quick-link" to="/admin/events">
-            Events Overview
-          </Link>
-          <Link className="admin-quick-link" to="/admin/bookings">
-            Booking Overview
-          </Link>
-        </div>
-      )}
 
       {stats && (
         <div className="stats-grid">
@@ -217,6 +214,65 @@ export default function AdminPage() {
             <p>₹{stats.total_revenue}</p>
           </div>
         </div>
+      )}
+
+      {eventInsights && (
+        <section className="card insights-card">
+          <div className="insights-header">
+            <div>
+              <h3>Event Insights</h3>
+              <p>{eventInsights.title}</p>
+            </div>
+            <button className="admin-cancel-btn" onClick={() => setEventInsights(null)}>
+              Close Insights
+            </button>
+          </div>
+
+          {insightsLoading ? (
+            <p>Loading insights...</p>
+          ) : (
+            <div className="insights-grid">
+              <div className="insight-box">
+                <h4>{eventInsights.total_tickets_sold}</h4>
+                <p>Tickets Sold</p>
+              </div>
+              <div className="insight-box">
+                <h4>{eventInsights.remaining_tickets}</h4>
+                <p>Remaining Tickets</p>
+              </div>
+              <div className="insight-box">
+                <h4>₹{eventInsights.total_revenue}</h4>
+                <p>Total Revenue</p>
+              </div>
+              <div className="insight-box">
+                <h4>{eventInsights.booking_count}</h4>
+                <p>Booking Count</p>
+              </div>
+            </div>
+          )}
+
+          {!insightsLoading && (
+            <div className="insight-progress">
+              <p>Sales Progress</p>
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${Math.round(
+                      ((eventInsights.total_tickets_sold || 0) /
+                        ((eventInsights.total_tickets_sold || 0) +
+                          (eventInsights.remaining_tickets || 0) || 1)) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p>
+                {eventInsights.total_tickets_sold} / {eventInsights.total_tickets_sold + eventInsights.remaining_tickets} tickets sold
+              </p>
+            </div>
+          )}
+        </section>
       )}
 
       <form className="card admin-form" onSubmit={handleAddEvent}>
@@ -313,7 +369,7 @@ export default function AdminPage() {
         </div>
       </form>
 
-      <h3 className="admin-section-title">All Events</h3>
+      <h3 className="admin-section-title">Your Events</h3>
 
       <div className="admin-events-grid">
         {events.map((e) => (
@@ -329,46 +385,33 @@ export default function AdminPage() {
             <p>₹{e.ticket_price}</p>
 
             <p>
-              Status:{" "}
-              <strong
-                style={{
-                  color:
-                    e.status === "CANCELLED" ||
-                    e.status === "COMPLETED"
-                      ? "red"
-                      : "green",
-                }}
-              >
-                {e.status || "UPCOMING"}
-              </strong>
+              Status: <strong>{e.status || "UPCOMING"}</strong>
             </p>
 
-            {(user.role === "ADMIN" || e.created_by === user.id) && (
-              <div className="admin-actions">
-                <button
-                  className="admin-info-btn"
-                  onClick={() => fetchEventInsights(e.id)}
-                >
-                  View Insights
-                </button>
-                {e.status !== "CANCELLED" && e.status !== "COMPLETED" && (
-                  <>
-                    <button
-                      className="admin-edit-btn"
-                      onClick={() => handleEditEvent(e)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="admin-cancel-btn"
-                      onClick={() => handleCancel(e.id)}
-                    >
-                      Cancel Event
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="admin-actions">
+              <button
+                className="admin-info-btn"
+                onClick={() => fetchEventInsights(e.id)}
+              >
+                View Insights
+              </button>
+              {e.status !== "CANCELLED" && e.status !== "COMPLETED" && (
+                <>
+                  <button
+                    className="admin-edit-btn"
+                    onClick={() => handleEditEvent(e)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="admin-cancel-btn"
+                    onClick={() => handleCancel(e.id)}
+                  >
+                    Cancel Event
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
