@@ -71,6 +71,8 @@ class TicketResponse(BaseModel):
     ticket_quantity: int
     total_price: float
     booking_status: str
+    event_status: Optional[str] = None
+    is_expired: bool = False
 
     class Config:
         from_attributes = True

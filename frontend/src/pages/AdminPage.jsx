@@ -9,6 +9,8 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState(null);
   const [events, setEvents] = useState([]);
+  const [eventInsights, setEventInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -37,6 +39,18 @@ export default function AdminPage() {
   const fetchStats = async () => {
     const res = await API.get("/admin/stats");
     setStats(res.data);
+  };
+
+  const fetchEventInsights = async (eventId) => {
+    setInsightsLoading(true);
+    try {
+      const res = await API.get(`/admin/events/${eventId}/insights`);
+      setEventInsights(res.data);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to load event insights");
+    } finally {
+      setInsightsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -217,6 +231,65 @@ export default function AdminPage() {
             <p>₹{stats.total_revenue}</p>
           </div>
         </div>
+      )}
+
+      {eventInsights && (
+        <section className="card insights-card">
+          <div className="insights-header">
+            <div>
+              <h3>Event Insights</h3>
+              <p>{eventInsights.title}</p>
+            </div>
+            <button className="admin-cancel-btn" onClick={() => setEventInsights(null)}>
+              Close Insights
+            </button>
+          </div>
+
+          {insightsLoading ? (
+            <p>Loading insights...</p>
+          ) : (
+            <div className="insights-grid">
+              <div className="insight-box">
+                <h4>{eventInsights.total_tickets_sold}</h4>
+                <p>Tickets Sold</p>
+              </div>
+              <div className="insight-box">
+                <h4>{eventInsights.remaining_tickets}</h4>
+                <p>Remaining Tickets</p>
+              </div>
+              <div className="insight-box">
+                <h4>₹{eventInsights.total_revenue}</h4>
+                <p>Total Revenue</p>
+              </div>
+              <div className="insight-box">
+                <h4>{eventInsights.booking_count}</h4>
+                <p>Booking Count</p>
+              </div>
+            </div>
+          )}
+
+          {!insightsLoading && (
+            <div className="insight-progress">
+              <p>Sales Progress</p>
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${Math.round(
+                      ((eventInsights.total_tickets_sold || 0) /
+                        ((eventInsights.total_tickets_sold || 0) +
+                          (eventInsights.remaining_tickets || 0) || 1)) *
+                        100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p>
+                {eventInsights.total_tickets_sold} / {eventInsights.total_tickets_sold + eventInsights.remaining_tickets} tickets sold
+              </p>
+            </div>
+          )}
+        </section>
       )}
 
       <form className="card admin-form" onSubmit={handleAddEvent}>

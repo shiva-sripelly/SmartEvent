@@ -1212,6 +1212,49 @@ a {
   background: var(--accent-teal);
 }
 
+.insights-card {
+  margin: 24px 0;
+  padding: 24px;
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-border);
+}
+
+.insights-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.insight-box {
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--gold-border);
+}
+
+.insight-box h4 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.insight-box p {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+}
+
+.insight-progress {
+  margin-top: 24px;
+}
+
 .small-text {
   color: var(--text-secondary);
   margin-bottom: 14px;
@@ -1437,7 +1480,8 @@ a {
 
 .admin-cancel-btn,
 .admin-delete-btn,
-.admin-edit-btn {
+.admin-edit-btn,
+.admin-info-btn {
   border: none;
   color: white;
   padding: 9px 16px;
@@ -1448,14 +1492,16 @@ a {
 }
 
 .admin-cancel-btn,
-.admin-edit-btn {
+.admin-edit-btn,
+.admin-info-btn {
   background: rgba(240, 165, 0, 0.15);
   border: 1px solid rgba(240, 165, 0, 0.4);
   color: var(--warning);
 }
 
 .admin-cancel-btn:hover,
-.admin-edit-btn:hover {
+.admin-edit-btn:hover,
+.admin-info-btn:hover {
   background: rgba(240, 165, 0, 0.25);
 }
 
