@@ -8,12 +8,6 @@ export default function EventsOverviewPage() {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!loading && user?.role === "ADMIN") {
-      fetchEvents();
-    }
-  }, [loading, user]);
-
   const fetchEvents = async () => {
     try {
       const response = await API.get("/admin/all-events");
@@ -22,6 +16,12 @@ export default function EventsOverviewPage() {
       setError(err.response?.data?.detail || "Unable to load events.");
     }
   };
+
+  useEffect(() => {
+    if (!loading && user?.role === "ADMIN") {
+      fetchEvents();
+    }
+  }, [loading, user]);
 
   if (loading || !user) {
     return <h2 className="loading">Loading events...</h2>;
@@ -40,6 +40,12 @@ export default function EventsOverviewPage() {
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
             Analytics
+          </Link>
+          <Link className="admin-nav-link" to="/admin/users">
+            Users
+          </Link>
+          <Link className="admin-nav-link" to="/admin/bookings">
+            Bookings
           </Link>
         </div>
       </div>

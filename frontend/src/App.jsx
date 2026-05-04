@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
@@ -10,6 +10,7 @@ import EventDetailsPage from "./pages/EventDetailsPage";
 import BookingHistoryPage from "./pages/BookingHistoryPage";
 import TicketsPage from "./pages/TicketsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import PaymentCheckoutPage from "./pages/PaymentCheckoutPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import AdminPage from "./pages/AdminPage";
 import OrganizerPage from "./pages/OrganizerPage";
@@ -23,11 +24,21 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 import "./App.css";
 
+function PageTransition({ children }) {
+  const location = useLocation();
+
+  return (
+    <main className="full-page page-transition" key={location.pathname}>
+      {children}
+    </main>
+  );
+}
+
 function AppLayout({ children }) {
   return (
     <>
       <Navbar />
-      <main className="full-page">{children}</main>
+      <PageTransition>{children}</PageTransition>
     </>
   );
 }
@@ -95,6 +106,17 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <NotificationsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/checkout/:bookingId"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <PaymentCheckoutPage />
                 </AppLayout>
               </ProtectedRoute>
             }

@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 
 from app.database import get_db
-from app.models import Ticket, User
+from app.models import Booking, Ticket, User
 from app.schemas import TicketResponse
 from app.core.security import get_current_user
 from app.utils.event_status import expire_past_events
@@ -18,9 +18,13 @@ def get_tickets(
     current_user: User = Depends(get_current_user)
 ):
     expire_past_events(db)
-    tickets = db.query(Ticket).join(Ticket.booking).filter(
-        Ticket.booking.has(user_id=current_user.id)
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .join(Ticket.booking)
+        .filter(Ticket.booking.has(user_id=current_user.id))
+        .order_by(Booking.created_at.desc(), Ticket.id.desc())
+        .all()
+    )
 
     now = datetime.now()
 

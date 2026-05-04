@@ -1,9 +1,26 @@
-.env
-*.env
-backend/*.env
-venv/
+# Python
 __pycache__/
-node_modules/
+*.pyc
 
+# Env
+.env
+venv/
+
+# VS Code
+.vscode/
+
+# Uploads & generated files
 backend/uploads/
 backend/qr_codes/
+
+# Frontend build/static
+node_modules/
+dist/
+
+# Images (optional if dynamic)
+*.png
+*.jpg
+
+.env
+*.env
+backend/backend.env

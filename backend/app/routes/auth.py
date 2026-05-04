@@ -31,7 +31,6 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-# ================= REGISTER =================
 @router.post("/register", response_model=UserResponse)
 def register(user: UserRegister, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
@@ -74,7 +73,6 @@ SmartEvent Team
     return new_user
 
 
-# ================= LOGIN =================
 @router.post("/login", response_model=TokenResponse)
 def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -113,13 +111,11 @@ SmartEvent Team
     }
 
 
-# ================= PROFILE =================
 @router.get("/profile", response_model=UserResponse)
 def get_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-# ================= FORGOT PASSWORD =================
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
     if payload.email != payload.confirm_email:
@@ -165,7 +161,6 @@ SmartEvent Team
     return {"message": "Password reset link sent successfully"}
 
 
-# ================= RESET PASSWORD =================
 @router.post("/reset-password")
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     if payload.new_password != payload.confirm_password:

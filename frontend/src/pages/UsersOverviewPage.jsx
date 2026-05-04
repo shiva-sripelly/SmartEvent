@@ -8,12 +8,6 @@ export default function UsersOverviewPage() {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!loading && user?.role === "ADMIN") {
-      fetchUsers();
-    }
-  }, [loading, user]);
-
   const fetchUsers = async () => {
     try {
       const response = await API.get("/admin/users");
@@ -22,6 +16,12 @@ export default function UsersOverviewPage() {
       setError(err.response?.data?.detail || "Unable to load users.");
     }
   };
+
+  useEffect(() => {
+    if (!loading && user?.role === "ADMIN") {
+      fetchUsers();
+    }
+  }, [loading, user]);
 
   if (loading || !user) {
     return <h2 className="loading">Loading users...</h2>;
@@ -40,6 +40,12 @@ export default function UsersOverviewPage() {
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
             Analytics
+          </Link>
+          <Link className="admin-nav-link" to="/admin/events">
+            Events
+          </Link>
+          <Link className="admin-nav-link" to="/admin/bookings">
+            Bookings
           </Link>
         </div>
       </div>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, Field, constr
 from datetime import datetime
 from typing import Optional
 
@@ -40,13 +40,16 @@ class EventResponse(EventCreate):
     status: Optional[str] = None
     event_status: Optional[str] = None
     created_at: Optional[datetime] = None
+    average_rating: Optional[float] = None
+    reviews_count: Optional[int] = None
 
     class Config:
         from_attributes = True
         
 class BookingCreate(BaseModel):
     event_id: int
-    ticket_quantity: int
+    ticket_quantity: int = Field(gt=0)
+    coupon_code: Optional[str] = None
 
 
 class BookingResponse(BaseModel):
@@ -55,7 +58,12 @@ class BookingResponse(BaseModel):
     event_id: int
     ticket_quantity: int
     total_price: float
+    coupon_id: Optional[int] = None
+    discount_amount: float = 0
+    final_amount: Optional[float] = None
     booking_status: str
+    event_status: Optional[str] = None
+    event_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -82,7 +90,9 @@ class NotificationResponse(BaseModel):
     title: str
     message: str
     type: str
+    notification_type: Optional[str] = None
     is_read: int
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -96,3 +106,80 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
     confirm_password: str
+
+
+class PaymentResponse(BaseModel):
+    id: int
+    booking_id: int
+    payment_method: str
+    payment_status: str
+    transaction_id: Optional[str] = None
+    amount: float
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentSimulationRequest(BaseModel):
+    booking_id: int
+    payment_method: str = "SIMULATED_CARD"
+    succeed: bool = True
+
+
+class CouponCreate(BaseModel):
+    coupon_code: str
+    discount_type: str
+    discount_value: float = Field(gt=0)
+    minimum_booking_amount: float = Field(default=0, ge=0)
+    expiry_date: datetime
+    usage_limit: int = Field(gt=0)
+    is_active: int = 1
+
+
+class CouponResponse(CouponCreate):
+    id: int
+    used_count: int = 0
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CouponValidateRequest(BaseModel):
+    coupon_code: str
+    booking_amount: float = Field(ge=0)
+
+
+class CouponValidationResponse(BaseModel):
+    coupon_id: int
+    coupon_code: str
+    discount_type: str
+    discount_value: float
+    discount_amount: float
+    final_amount: float
+    message: str
+
+
+class ReviewCreate(BaseModel):
+    event_id: int
+    rating: int = Field(ge=1, le=5)
+    review_text: Optional[str] = None
+
+
+class ReviewUpdate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    review_text: Optional[str] = None
+
+
+class ReviewResponse(BaseModel):
+    id: int
+    user_id: int
+    event_id: int
+    rating: int
+    review_text: Optional[str] = None
+    created_at: datetime
+    username: Optional[str] = None
+
+    class Config:
+        from_attributes = True

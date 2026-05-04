@@ -8,12 +8,6 @@ export default function BookingsOverviewPage() {
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!loading && user?.role === "ADMIN") {
-      fetchBookings();
-    }
-  }, [loading, user]);
-
   const fetchBookings = async () => {
     try {
       const response = await API.get("/admin/all-bookings");
@@ -22,6 +16,12 @@ export default function BookingsOverviewPage() {
       setError(err.response?.data?.detail || "Unable to load bookings.");
     }
   };
+
+  useEffect(() => {
+    if (!loading && user?.role === "ADMIN") {
+      fetchBookings();
+    }
+  }, [loading, user]);
 
   if (loading || !user) {
     return <h2 className="loading">Loading bookings...</h2>;
@@ -40,6 +40,12 @@ export default function BookingsOverviewPage() {
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
             Analytics
+          </Link>
+          <Link className="admin-nav-link" to="/admin/users">
+            Users
+          </Link>
+          <Link className="admin-nav-link" to="/admin/events">
+            Events
           </Link>
         </div>
       </div>

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.database import SessionLocal
-from app.models import Booking, Event, User
+from app.models import Booking, Event, Notification, User
 from app.utils.email import send_email
 
 
@@ -25,6 +25,21 @@ def send_event_reminders():
                 continue
 
             if now <= event.event_date <= reminder_time:
+                existing_notification = db.query(Notification).filter(
+                    Notification.user_id == user.id,
+                    Notification.title == f"Event Reminder - {event.title}",
+                    Notification.type == "EVENT"
+                ).first()
+
+                if not existing_notification:
+                    db.add(Notification(
+                        user_id=user.id,
+                        title=f"Event Reminder - {event.title}",
+                        message=f"{event.title} is coming soon at {event.location} on {event.event_date}.",
+                        type="EVENT"
+                    ))
+                    db.commit()
+
                 send_email(
                     to_email=user.email,
                     subject=f"Reminder: {event.title} is coming soon",

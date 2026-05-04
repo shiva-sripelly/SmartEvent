@@ -7,7 +7,7 @@ export default function TicketsPage() {
   useEffect(() => {
     const fetchTickets = async () => {
       const res = await API.get("/tickets/");
-      setTickets(res.data);
+      setTickets([...res.data].sort((a, b) => b.booking_id - a.booking_id || b.id - a.id));
     };
 
     fetchTickets();
@@ -26,13 +26,15 @@ export default function TicketsPage() {
 
       <div className="tickets-grid">
         {tickets.map((t) => {
+          const isCancelled = t.event_status === "CANCELLED";
           const isExpired =
-            t.is_expired ||
-            t.event_status === "COMPLETED" ||
-            t.event_status === "CANCELLED";
+            !isCancelled &&
+            (t.is_expired || t.event_status === "COMPLETED");
 
           const ticketStatus = isExpired
             ? "EXPIRED"
+            : isCancelled
+            ? "CANCELLED"
             : t.booking_status || "CONFIRMED";
 
           return (
@@ -96,9 +98,11 @@ export default function TicketsPage() {
                     alt="QR Code"
                   />
 
-                  {isExpired ? (
+                  {isExpired || isCancelled ? (
                     <div className="expired-text" style={{ marginTop: 12 }}>
-                      Ticket expired. QR code is no longer valid.
+                      {isCancelled
+                        ? "Event cancelled. QR code is no longer valid."
+                        : "Ticket expired. QR code is no longer valid."}
                     </div>
                   ) : (
                     <a

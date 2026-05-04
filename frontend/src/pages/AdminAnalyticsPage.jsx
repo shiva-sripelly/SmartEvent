@@ -12,12 +12,6 @@ export default function AdminAnalyticsPage() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!loading && user?.role === "ADMIN") {
-      fetchStats();
-    }
-  }, [loading, user]);
-
   const fetchStats = async () => {
     try {
       const response = await API.get("/admin/stats");
@@ -26,6 +20,12 @@ export default function AdminAnalyticsPage() {
       setError(err.response?.data?.detail || "Failed to load analytics.");
     }
   };
+
+  useEffect(() => {
+    if (!loading && user?.role === "ADMIN") {
+      fetchStats();
+    }
+  }, [loading, user]);
 
   if (loading || !user) {
     return <h2 className="loading">Loading analytics...</h2>;
