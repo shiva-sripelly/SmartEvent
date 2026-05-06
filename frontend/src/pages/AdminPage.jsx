@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import { getDisplayEventStatus, isEventUnavailable } from "../utils/eventStatus";
 
 export default function AdminPage() {
   const { logout, user } = useAuth();
@@ -25,6 +26,7 @@ export default function AdminPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [existingBannerUrl, setExistingBannerUrl] = useState(null);
+  const [updateForms, setUpdateForms] = useState({});
 
   const handleAdminLogout = () => {
     logout();
@@ -161,6 +163,39 @@ export default function AdminPage() {
       fetchStats();
     } catch (err) {
       alert(err.response?.data?.detail || "Cancel failed");
+    }
+  };
+
+  const updateAnnouncementForm = (eventId, changes) => {
+    setUpdateForms((currentForms) => ({
+      ...currentForms,
+      [eventId]: {
+        message: "",
+        is_important: 0,
+        ...(currentForms[eventId] || {}),
+        ...changes,
+      },
+    }));
+  };
+
+  const handlePostUpdate = async (eventId) => {
+    const formState = updateForms[eventId] || {};
+    const message = (formState.message || "").trim();
+
+    if (!message) {
+      alert("Enter an announcement message first");
+      return;
+    }
+
+    try {
+      await API.post(`/event-updates/event/${eventId}`, {
+        message,
+        is_important: formState.is_important ? 1 : 0,
+      });
+      updateAnnouncementForm(eventId, { message: "", is_important: 0 });
+      alert("Event update posted");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to post event update");
     }
   };
 
@@ -389,7 +424,11 @@ export default function AdminPage() {
       <h3 className="admin-section-title">All Events</h3>
 
       <div className="admin-events-grid">
-        {events.map((e) => (
+        {events.map((e) => {
+          const displayStatus = getDisplayEventStatus(e);
+          const isUnavailable = isEventUnavailable(e);
+
+          return (
           <div className="card admin-event-card" key={e.id}>
             {e.banner_image && (
               <div className="admin-event-thumb">
@@ -406,44 +445,77 @@ export default function AdminPage() {
               <strong
                 style={{
                   color:
-                    e.status === "CANCELLED" ||
-                    e.status === "COMPLETED"
+                    isUnavailable
                       ? "red"
                       : "green",
                 }}
               >
-                {e.status || "UPCOMING"}
+                {displayStatus}
               </strong>
             </p>
 
             {(user.role === "ADMIN" || e.created_by === user.id) && (
-              <div className="admin-actions">
-                <button
-                  className="admin-info-btn"
-                  onClick={() => fetchEventInsights(e.id)}
-                >
-                  View Insights
-                </button>
-                {e.status !== "CANCELLED" && e.status !== "COMPLETED" && (
-                  <>
-                    <button
-                      className="admin-edit-btn"
-                      onClick={() => handleEditEvent(e)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="admin-cancel-btn"
-                      onClick={() => handleCancel(e.id)}
-                    >
-                      Cancel Event
-                    </button>
-                  </>
-                )}
-              </div>
+              <>
+                <div className="admin-actions">
+                  <button
+                    className="admin-info-btn"
+                    onClick={() => fetchEventInsights(e.id)}
+                  >
+                    View Insights
+                  </button>
+                  {!isUnavailable && (
+                    <>
+                      <button
+                        className="admin-edit-btn"
+                        onClick={() => handleEditEvent(e)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="admin-cancel-btn"
+                        onClick={() => handleCancel(e.id)}
+                      >
+                        Cancel Event
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="event-update-composer">
+                  <textarea
+                    placeholder="Post a live update for attendees..."
+                    value={updateForms[e.id]?.message || ""}
+                    onChange={(event) =>
+                      updateAnnouncementForm(e.id, {
+                        message: event.target.value,
+                      })
+                    }
+                  />
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(updateForms[e.id]?.is_important)}
+                      onChange={(event) =>
+                        updateAnnouncementForm(e.id, {
+                          is_important: event.target.checked ? 1 : 0,
+                        })
+                      }
+                    />
+                    Important
+                  </label>
+                  <button
+                    className="admin-add-btn"
+                    type="button"
+                    onClick={() => handlePostUpdate(e.id)}
+                  >
+                    Post Update
+                  </button>
+                </div>
+              </>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

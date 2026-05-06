@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
+import { getSafeImageUrl } from "../utils/imageUrl";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const notificationRef = useRef(null);
+  const profileImage = getSafeImageUrl(user?.profile_picture);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
@@ -76,8 +78,25 @@ export default function Navbar() {
 
       <div className="nav-links flex items-center gap-2">
         <Link to="/">Home</Link>
+        <Link to="/wishlist">Wishlist</Link>
         <Link to="/bookings">Bookings</Link>
         <Link to="/tickets">Tickets</Link>
+        {user ? (
+          <Link
+            to="/profile"
+            className="nav-profile-avatar"
+            aria-label={`${user.username}'s profile`}
+            title={`${user.username}'s profile`}
+          >
+            {profileImage ? (
+              <img src={profileImage} alt={`${user.username} profile`} />
+            ) : (
+              <span className="default-profile-icon" aria-hidden="true"></span>
+            )}
+          </Link>
+        ) : (
+          <Link to="/profile">Profile</Link>
+        )}
 
         <div className="notification-menu" ref={notificationRef}>
           <button
@@ -142,7 +161,7 @@ export default function Navbar() {
 
         {user && (
           <>
-            <span className="user-name">Hi, {user.username}</span>
+            <Link className="user-name" to="/profile">Hi, {user.username}</Link>
 
             <button
               onClick={handleLogout}

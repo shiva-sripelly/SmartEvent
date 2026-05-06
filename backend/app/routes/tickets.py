@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models import Booking, Ticket, User
 from app.schemas import TicketResponse
 from app.core.security import get_current_user
-from app.utils.event_status import expire_past_events
+from app.utils.event_status import expire_past_events, is_event_expired
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -41,7 +41,7 @@ def get_tickets(
             "total_price": ticket.booking.total_price,
             "booking_status": ticket.booking.booking_status,
             "event_status": ticket.booking.event.status,
-            "is_expired": ticket.booking.event.status in ["CANCELLED", "COMPLETED"] or (ticket.booking.event.event_date and ticket.booking.event.event_date < now),
+            "is_expired": ticket.booking.event.status == "CANCELLED" or is_event_expired(ticket.booking.event, now),
         }
         for ticket in tickets
     ]

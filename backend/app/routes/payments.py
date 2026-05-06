@@ -4,16 +4,17 @@ from uuid import uuid4
 
 import stripe
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.database import SessionLocal, get_db
-from app.models import Booking, Event, Notification, Payment, Ticket, User
+from app.models import Booking, Event, Notification, Payment, Ticket, User, Wishlist
 from app.routes.coupons import validate_coupon_for_amount
 from app.schemas import PaymentResponse, PaymentSimulationRequest
 from app.utils.email import send_email
-from app.utils.event_status import expire_past_events
+from app.utils.connection_manager import manager
+from app.utils.event_status import expire_past_events, is_event_bookable
 from app.utils.qr import generate_qr_code
 
 load_dotenv("backend.env")
@@ -41,6 +42,29 @@ def create_notification(
     )
 
 
+def reserve_event_tickets(db: Session, event: Event, quantity: int) -> int:
+    updated_rows = (
+        db.query(Event)
+        .filter(Event.id == event.id, Event.available_tickets >= quantity)
+        .update(
+            {Event.available_tickets: Event.available_tickets - quantity},
+            synchronize_session=False,
+        )
+    )
+
+    if updated_rows != 1:
+        db.rollback()
+        db.refresh(event)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only {event.available_tickets} tickets available",
+        )
+
+    db.flush()
+    db.refresh(event)
+    return event.available_tickets
+
+
 def create_pending_booking_and_payment(
     db: Session,
     event: Event,
@@ -61,6 +85,8 @@ def create_pending_booking_and_payment(
             total_price,
         )
 
+    reserve_event_tickets(db, event, quantity)
+
     booking = Booking(
         user_id=user.id,
         event_id=event.id,
@@ -71,7 +97,11 @@ def create_pending_booking_and_payment(
         final_amount=final_amount,
         booking_status="PENDING",
     )
-    event.available_tickets -= quantity
+    db.query(Wishlist).filter(
+        Wishlist.user_id == user.id,
+        Wishlist.event_id == event.id,
+    ).delete()
+
     db.add(booking)
     db.commit()
     db.refresh(booking)
@@ -101,6 +131,14 @@ def confirm_payment(db: Session, payment: Payment, transaction_id: str | None = 
     user = db.query(User).filter(User.id == booking.user_id).first()
     if not event or not user:
         raise HTTPException(status_code=404, detail="Booking owner or event not found")
+
+    if not is_event_bookable(event, datetime.now()):
+        if booking.booking_status == "PENDING":
+            fail_payment(db, payment)
+        raise HTTPException(
+            status_code=400,
+            detail="This event is no longer available for booking.",
+        )
 
     payment.payment_status = "SUCCESS"
     payment.transaction_id = transaction_id or f"SIM-{uuid4().hex}"
@@ -185,6 +223,7 @@ def fail_payment(db: Session, payment: Payment) -> Booking:
 def create_checkout_session(
     event_id: int,
     quantity: int,
+    background_tasks: BackgroundTasks,
     coupon_code: str | None = None,
     use_simulation: bool = False,
     db: Session = Depends(get_db),
@@ -196,13 +235,20 @@ def create_checkout_session(
         raise HTTPException(status_code=404, detail="Event not found")
 
     now = datetime.now()
-    if event.status in ["CANCELLED", "COMPLETED"] or event.event_date < now:
+    if not is_event_bookable(event, now):
         raise HTTPException(status_code=400, detail="This event is no longer available for booking.")
 
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Invalid ticket quantity")
 
     if event.available_tickets < quantity:
+        if background_tasks:
+            background_tasks.add_task(
+                manager.broadcast_availability,
+                event.id,
+                event.available_tickets,
+                event.status,
+            )
         raise HTTPException(status_code=400, detail="Not enough tickets available")
 
     booking, payment = create_pending_booking_and_payment(
@@ -213,6 +259,14 @@ def create_checkout_session(
         "STRIPE",
         coupon_code,
     )
+
+    if background_tasks:
+        background_tasks.add_task(
+            manager.broadcast_availability,
+            event.id,
+            event.available_tickets,
+            event.status,
+        )
 
     if use_simulation or not stripe.api_key:
         return {
@@ -226,6 +280,7 @@ def create_checkout_session(
         payment_method_types=["card"],
         mode="payment",
         customer_email=current_user.email,
+        client_reference_id=str(payment.id),
         metadata={
             "booking_id": str(booking.id),
             "payment_id": str(payment.id),
@@ -271,12 +326,25 @@ def verify_stripe_session(
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
+    if payment.payment_status == "SUCCESS":
+        return payment
+
     if not stripe.api_key:
         raise HTTPException(status_code=400, detail="Stripe is not configured")
 
     session = stripe.checkout.Session.retrieve(session_id)
-    if str(session.metadata("payment_id")) != str(payment.id):
-        session.metadata("payment_id") if isinstance(session.metadata, dict) else None
+    session_metadata = session.get("metadata") or getattr(session, "metadata", {}) or {}
+    session_payment_id = (
+        session_metadata.get("payment_id")
+        if hasattr(session_metadata, "get")
+        else None
+    )
+    session_reference_id = session.get("client_reference_id") or getattr(
+        session,
+        "client_reference_id",
+        None,
+    )
+    if str(session_payment_id or session_reference_id) != str(payment.id):
         raise HTTPException(status_code=400, detail="Stripe session does not match this payment")
 
     if session.payment_status != "paid":
@@ -285,8 +353,7 @@ def verify_stripe_session(
     confirm_payment(
         db,
         payment,
-        session.payment_intent,
-        session.id,
+        session.payment_intent or f"STRIPE-{session.id}",
     )
     db.refresh(payment)
     return payment
@@ -295,6 +362,7 @@ def verify_stripe_session(
 @router.post("/simulate", response_model=PaymentResponse)
 def simulate_payment(
     request: PaymentSimulationRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -325,6 +393,14 @@ def simulate_payment(
         fail_payment(db, payment)
 
     db.refresh(payment)
+    booking_event = db.query(Event).filter(Event.id == booking.event_id).first()
+    if booking_event:
+        background_tasks.add_task(
+            manager.broadcast_availability,
+            booking_event.id,
+            booking_event.available_tickets,
+            booking_event.status,
+        )
     return payment
 
 

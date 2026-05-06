@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship, synonym
 from datetime import datetime
 from app.database import Base
@@ -10,6 +10,7 @@ class User(Base):
     username = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
+    profile_picture = Column(String(255), nullable=True)
     role = Column(String(20), nullable=False, default="USER")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -30,6 +31,50 @@ class Event(Base):
     event_status = synonym("status")
     created_by = Column(Integer, ForeignKey("users.id"))
     organizer_id = synonym("created_by")
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_wishlist_user_event"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    event = relationship("Event")
+
+
+class EventUpdate(Base):
+    __tablename__ = "event_updates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    message = Column(String(1000), nullable=False)
+    is_important = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    event = relationship("Event")
+
+
+class UserEventView(Base):
+    __tablename__ = "user_event_views"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_user_event_view"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    view_count = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+    event = relationship("Event")
 
 class Booking(Base):
     __tablename__ = "bookings"

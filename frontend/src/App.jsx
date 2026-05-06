@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import ChatbotWidget from "./components/ChatbotWidget";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -12,6 +13,8 @@ import TicketsPage from "./pages/TicketsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PaymentCheckoutPage from "./pages/PaymentCheckoutPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import WishlistPage from "./pages/WishlistPage";
+import ProfilePage from "./pages/ProfilePage";
 import AdminPage from "./pages/AdminPage";
 import OrganizerPage from "./pages/OrganizerPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
@@ -39,6 +42,7 @@ function AppLayout({ children }) {
     <>
       <Navbar />
       <PageTransition>{children}</PageTransition>
+      <ChatbotWidget />
     </>
   );
 }
@@ -95,6 +99,28 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <TicketsPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <WishlistPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ProfilePage />
                 </AppLayout>
               </ProtectedRoute>
             }

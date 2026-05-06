@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { getDisplayEventStatus, isEventUnavailable } from "../utils/eventStatus";
 
 export default function OrganizerPage() {
   const { logout, user } = useAuth();
@@ -25,6 +26,7 @@ export default function OrganizerPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [existingBannerUrl, setExistingBannerUrl] = useState(null);
+  const [updateForms, setUpdateForms] = useState({});
 
   const handleLogout = () => {
     logout();
@@ -161,6 +163,39 @@ export default function OrganizerPage() {
       fetchStats();
     } catch (err) {
       alert(err.response?.data?.detail || "Cancel failed");
+    }
+  };
+
+  const updateAnnouncementForm = (eventId, changes) => {
+    setUpdateForms((currentForms) => ({
+      ...currentForms,
+      [eventId]: {
+        message: "",
+        is_important: 0,
+        ...(currentForms[eventId] || {}),
+        ...changes,
+      },
+    }));
+  };
+
+  const handlePostUpdate = async (eventId) => {
+    const formState = updateForms[eventId] || {};
+    const message = (formState.message || "").trim();
+
+    if (!message) {
+      alert("Enter an announcement message first");
+      return;
+    }
+
+    try {
+      await API.post(`/event-updates/event/${eventId}`, {
+        message,
+        is_important: formState.is_important ? 1 : 0,
+      });
+      updateAnnouncementForm(eventId, { message: "", is_important: 0 });
+      alert("Event update posted");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to post event update");
     }
   };
 
@@ -372,7 +407,11 @@ export default function OrganizerPage() {
       <h3 className="admin-section-title">Your Events</h3>
 
       <div className="admin-events-grid">
-        {events.map((e) => (
+        {events.map((e) => {
+          const displayStatus = getDisplayEventStatus(e);
+          const isUnavailable = isEventUnavailable(e);
+
+          return (
           <div className="card admin-event-card" key={e.id}>
             {e.banner_image && (
               <div className="admin-event-thumb">
@@ -385,7 +424,7 @@ export default function OrganizerPage() {
             <p>₹{e.ticket_price}</p>
 
             <p>
-              Status: <strong>{e.status || "UPCOMING"}</strong>
+              Status: <strong>{displayStatus}</strong>
             </p>
 
             <div className="admin-actions">
@@ -395,7 +434,7 @@ export default function OrganizerPage() {
               >
                 View Insights
               </button>
-              {e.status !== "CANCELLED" && e.status !== "COMPLETED" && (
+              {!isUnavailable && (
                 <>
                   <button
                     className="admin-edit-btn"
@@ -412,8 +451,40 @@ export default function OrganizerPage() {
                 </>
               )}
             </div>
+
+            <div className="event-update-composer">
+              <textarea
+                placeholder="Post a live update for attendees..."
+                value={updateForms[e.id]?.message || ""}
+                onChange={(event) =>
+                  updateAnnouncementForm(e.id, {
+                    message: event.target.value,
+                  })
+                }
+              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={Boolean(updateForms[e.id]?.is_important)}
+                  onChange={(event) =>
+                    updateAnnouncementForm(e.id, {
+                      is_important: event.target.checked ? 1 : 0,
+                    })
+                  }
+                />
+                Important
+              </label>
+              <button
+                className="admin-add-btn"
+                type="button"
+                onClick={() => handlePostUpdate(e.id)}
+              >
+                Post Update
+              </button>
+            </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

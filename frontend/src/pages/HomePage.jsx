@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
+import { getSafeImageUrl } from "../utils/imageUrl";
+import { isEventActive, isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
 const categories = ["Music", "Tech", "Sports", "Business", "Comedy", "Workshops"];
 
 export default function HomePage() {
   const [events, setEvents] = useState([]);
+  const [recommendedEvents, setRecommendedEvents] = useState([]);
+  const [trendingEvents, setTrendingEvents] = useState([]);
   const [filters, setFilters] = useState({
     title: "",
     category: "",
@@ -16,6 +20,7 @@ export default function HomePage() {
   const [filterType, setFilterType] = useState("ALL");
   const [sortBy, setSortBy] = useState("date_asc");
   const [loading, setLoading] = useState(true);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   const fetchEvents = async (nextFilters = filters) => {
     setLoading(true);
@@ -56,17 +61,62 @@ export default function HomePage() {
     fetchEvents(nextFilters);
   };
 
+  const fetchWishlist = async () => {
+    try {
+      const res = await API.get("/wishlist/");
+      setWishlistIds(res.data.map((item) => item.event_id));
+    } catch {
+      setWishlistIds([]);
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    try {
+      const [recommendedRes, trendingRes] = await Promise.all([
+        API.get("/recommendations/personalized"),
+        API.get("/recommendations/trending"),
+      ]);
+
+      setRecommendedEvents(recommendedRes.data);
+      setTrendingEvents(trendingRes.data);
+    } catch (err) {
+      console.error("Unable to load recommendations:", err);
+      setRecommendedEvents([]);
+      setTrendingEvents([]);
+    }
+  };
+
+  const toggleWishlist = async (eventId) => {
+    const isSaved = wishlistIds.includes(eventId);
+
+    try {
+      if (isSaved) {
+        await API.delete(`/wishlist/${eventId}`);
+        setWishlistIds((currentIds) =>
+          currentIds.filter((savedId) => savedId !== eventId)
+        );
+      } else {
+        await API.post(`/wishlist/${eventId}`);
+        setWishlistIds((currentIds) => [...currentIds, eventId]);
+      }
+    } catch (err) {
+      console.error("Unable to update wishlist:", err);
+    }
+  };
+
   useEffect(() => {
     fetchEvents();
+    fetchWishlist();
+    fetchRecommendations();
   }, []);
 
   const visibleEvents = useMemo(() => {
     const filtered = events.filter((event) => {
       if (filterType === "ACTIVE") {
-        return ["UPCOMING", "ONGOING"].includes(event.status);
+        return isEventActive(event);
       }
       if (filterType === "CANCELLED") {
-        return event.status === "CANCELLED";
+        return isEventCancelled(event);
       }
       return true;
     });
@@ -80,6 +130,27 @@ export default function HomePage() {
       return 0;
     });
   }, [events, filterType, sortBy]);
+
+  const renderRecommendationCard = (event) => {
+    const bannerImage = getSafeImageUrl(event.banner_image);
+
+    return (
+      <Link className="trend-card" to={`/events/${event.id}`} key={event.id}>
+        {bannerImage ? (
+          <img src={bannerImage} alt={event.title} />
+        ) : (
+          <div className="event-image-fallback">
+            <span>{event.category || event.title}</span>
+          </div>
+        )}
+
+        <div className="trend-overlay">
+          <h4>{event.title}</h4>
+          <p>{event.category} • {event.location}</p>
+        </div>
+      </Link>
+    );
+  };
 
   return (
     <div className="events-layout w-full px-4 md:px-8 overflow-x-hidden">
@@ -173,6 +244,30 @@ export default function HomePage() {
           </button>
         </div>
 
+        {recommendedEvents.length > 0 && (
+          <section className="recommendation-section">
+            <div className="recommendation-heading">
+              <h2 className="section-title">Recommended for You</h2>
+              <span>{recommendedEvents.length} picks</span>
+            </div>
+            <div className="trending-carousel">
+              {recommendedEvents.map(renderRecommendationCard)}
+            </div>
+          </section>
+        )}
+
+        {trendingEvents.length > 0 && (
+          <section className="recommendation-section">
+            <div className="recommendation-heading">
+              <h2 className="section-title">Trending Events</h2>
+              <span>Popular now</span>
+            </div>
+            <div className="trending-carousel">
+              {trendingEvents.map(renderRecommendationCard)}
+            </div>
+          </section>
+        )}
+
         {/* EVENTS */}
         <div className="premium-event-grid">
   {loading ? (
@@ -188,13 +283,35 @@ export default function HomePage() {
     </div>
   ) : (
     visibleEvents.map((event) => {
-      const isExpired = event.status === "COMPLETED";
-      const isCancelled = event.status === "CANCELLED";
+      const isExpired = isEventExpired(event);
+      const isCancelled = isEventCancelled(event);
+      const bannerImage = getSafeImageUrl(event.banner_image);
+      const isWishlisted = wishlistIds.includes(event.id);
 
       return (
         <div className="premium-event-card" key={event.id}>
           <div className="poster-wrap">
-            <img src={event.banner_image} alt={event.title} />
+            <button
+              type="button"
+              className={`wishlist-button ${isWishlisted ? "saved" : ""}`}
+              onClick={() => toggleWishlist(event.id)}
+              aria-label={
+                isWishlisted
+                  ? `Remove ${event.title} from wishlist`
+                  : `Save ${event.title} to wishlist`
+              }
+              title={isWishlisted ? "Remove from wishlist" : "Save event"}
+            >
+              {isWishlisted ? "\u2665" : "\u2661"}
+            </button>
+
+            {bannerImage ? (
+              <img src={bannerImage} alt={event.title} />
+            ) : (
+              <div className="event-image-fallback">
+                <span>{event.category || event.title}</span>
+              </div>
+            )}
 
             {isExpired && <span className="expired-badge">Expired</span>}
             {isCancelled && <span className="cancelled-badge">Cancelled</span>}
@@ -213,7 +330,7 @@ export default function HomePage() {
             <Link to={`/events/${event.id}`}>View Details</Link>
           ) : (
             <span className="expired-text">
-              {isCancelled ? "Cancelled" : "Closed"}
+              {isCancelled ? "Cancelled" : "Expired"}
             </span>
           )}
         </div>

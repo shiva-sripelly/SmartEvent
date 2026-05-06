@@ -1,19 +1,18 @@
 import { Link } from "react-router-dom";
+import { getSafeImageUrl } from "../utils/imageUrl";
+import { isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
 export default function EventCard({ event }) {
-  const isExpired = event.status === "COMPLETED";
-  const isCancelled = event.status === "CANCELLED";
+  const isExpired = isEventExpired(event);
+  const isCancelled = isEventCancelled(event);
+  const bannerImage =
+    getSafeImageUrl(event.banner_image) ||
+    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4";
 
   return (
     <div className={`premium-event-card ${isExpired || isCancelled ? "expired-card" : ""}`}>
       <div className="poster-wrap">
-        <img
-          src={
-            event.banner_image ||
-            "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4"
-          }
-          alt={event.title}
-        />
+        <img src={bannerImage} alt={event.title} />
 
         {isExpired && <span className="expired-badge">Expired</span>}
         {isCancelled && <span className="cancelled-badge">Cancelled</span>}
@@ -36,7 +35,7 @@ export default function EventCard({ event }) {
         <Link to={`/events/${event.id}`}>View Details</Link>
       ) : (
         <span className="expired-text">
-          {isCancelled ? "Cancelled" : "Booking Closed"}
+          {isCancelled ? "Cancelled" : "Expired"}
         </span>
       )}
     </div>

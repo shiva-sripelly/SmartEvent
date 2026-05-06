@@ -102,6 +102,24 @@ def run_migration() -> None:
         else:
             print("reviews table already exists")
 
+        if not table_exists("user_event_views"):
+            print("Creating user_event_views table...")
+            connection.execute(text("""
+                CREATE TABLE user_event_views (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    event_id INT NOT NULL,
+                    view_count INT DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_user_event_view UNIQUE (user_id, event_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (event_id) REFERENCES events(id)
+                )
+            """))
+        else:
+            print("user_event_views table already exists")
+
         booking_columns = [
             ("coupon_id", "INT NULL"),
             ("discount_amount", "FLOAT DEFAULT 0"),

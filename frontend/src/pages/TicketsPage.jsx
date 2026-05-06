@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import { isEventExpired } from "../utils/eventStatus";
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState([]);
@@ -29,7 +30,9 @@ export default function TicketsPage() {
           const isCancelled = t.event_status === "CANCELLED";
           const isExpired =
             !isCancelled &&
-            (t.is_expired || t.event_status === "COMPLETED");
+            (t.is_expired ||
+              t.event_status === "COMPLETED" ||
+              isEventExpired({ status: t.event_status, event_date: t.event_date }));
 
           const ticketStatus = isExpired
             ? "EXPIRED"

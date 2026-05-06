@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
+import { getDisplayEventStatus } from "../utils/eventStatus";
 
 export default function EventsOverviewPage() {
   const { user, loading } = useAuth();
@@ -73,7 +74,7 @@ export default function EventsOverviewPage() {
                     <td>{event.id}</td>
                     <td>{event.title}</td>
                     <td>{event.category}</td>
-                    <td>{event.status}</td>
+                    <td>{getDisplayEventStatus(event)}</td>
                     <td>{event.created_by || event.organizer_id}</td>
                     <td>₹{event.ticket_price}</td>
                   </tr>

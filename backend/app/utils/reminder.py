@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
 from app.models import Booking, Event, Notification, User
 from app.utils.email import send_email
+from app.utils.event_status import is_event_bookable
 
 
 def send_event_reminders():
@@ -22,6 +23,9 @@ def send_event_reminders():
             user = db.query(User).filter(User.id == booking.user_id).first()
 
             if not event or not user:
+                continue
+
+            if not is_event_bookable(event, now):
                 continue
 
             if now <= event.event_date <= reminder_time:
