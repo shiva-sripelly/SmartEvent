@@ -219,6 +219,38 @@ def fail_payment(db: Session, payment: Payment) -> Booking:
     return booking
 
 
+def create_stripe_checkout_url(payment: Payment, booking: Booking, event: Event, user: User) -> str:
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        mode="payment",
+        customer_email=user.email,
+        client_reference_id=str(payment.id),
+        metadata={
+            "booking_id": str(booking.id),
+            "payment_id": str(payment.id),
+            "event_id": str(event.id),
+            "quantity": str(booking.ticket_quantity),
+            "user_id": str(user.id),
+        },
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "inr",
+                    "product_data": {
+                        "name": event.title,
+                        "description": event.location,
+                    },
+                    "unit_amount": int(payment.amount * 100),
+                },
+                "quantity": 1,
+            }
+        ],
+        success_url=f"{FRONTEND_URL}/payment-success?payment_id={payment.id}&session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{FRONTEND_URL}/checkout/{booking.id}?payment_id={payment.id}&status=cancelled",
+    )
+    return session.url
+
+
 @router.post("/create-checkout-session")
 def create_checkout_session(
     event_id: int,
@@ -276,37 +308,56 @@ def create_checkout_session(
             "message": "Use simulated checkout.",
         }
 
-    session = stripe.checkout.Session.create(
-        payment_method_types=["card"],
-        mode="payment",
-        customer_email=current_user.email,
-        client_reference_id=str(payment.id),
-        metadata={
-            "booking_id": str(booking.id),
-            "payment_id": str(payment.id),
-            "event_id": str(event.id),
-            "quantity": str(quantity),
-            "user_id": str(current_user.id),
-        },
-        line_items=[
-            {
-                "price_data": {
-                    "currency": "inr",
-                    "product_data": {
-                        "name": event.title,
-                        "description": event.location,
-                    },
-                    "unit_amount": int(payment.amount * 100),
-                },
-                "quantity": 1,
-            }
-        ],
-        success_url=f"{FRONTEND_URL}/payment-success?payment_id={payment.id}&session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{FRONTEND_URL}/checkout/{booking.id}?payment_id={payment.id}&status=cancelled",
-    )
+    return {
+        "checkout_url": f"{FRONTEND_URL}/checkout/{booking.id}?payment_id={payment.id}",
+        "booking_id": booking.id,
+        "payment_id": payment.id,
+    }
+
+
+@router.post("/{payment_id}/stripe-checkout")
+def create_stripe_checkout_for_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    payment = db.query(Payment).join(Booking).filter(
+        Payment.id == payment_id,
+        Booking.user_id == current_user.id,
+    ).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if payment.payment_status == "SUCCESS" or booking.booking_status == "CONFIRMED":
+        return {
+            "checkout_url": f"{FRONTEND_URL}/payment-success?payment_id={payment.id}",
+            "booking_id": booking.id,
+            "payment_id": payment.id,
+            "message": "Payment is already completed.",
+        }
+
+    event = db.query(Event).filter(Event.id == booking.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not is_event_bookable(event, datetime.now()):
+        fail_payment(db, payment)
+        raise HTTPException(status_code=400, detail="This event is no longer available for booking.")
+
+    if not stripe.api_key:
+        return {
+            "checkout_url": f"{FRONTEND_URL}/checkout/{booking.id}?payment_id={payment.id}",
+            "booking_id": booking.id,
+            "payment_id": payment.id,
+            "message": "Stripe is not configured. Use simulated checkout.",
+        }
 
     return {
-        "checkout_url": session.url,
+        "checkout_url": create_stripe_checkout_url(payment, booking, event, current_user),
         "booking_id": booking.id,
         "payment_id": payment.id,
     }

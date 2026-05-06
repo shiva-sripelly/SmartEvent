@@ -57,6 +57,30 @@ export default function PaymentCheckoutPage() {
     }
   };
 
+  const payWithStripe = async () => {
+    if (!paymentId) {
+      setMessage("Payment session is missing. Please start checkout again.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setMessage("");
+
+    try {
+      const res = await API.post(`/payments/${paymentId}/stripe-checkout`);
+
+      if (res.data.checkout_url.includes("/checkout/")) {
+        setMessage(res.data.message || "Stripe is not configured. Use simulated checkout.");
+      } else {
+        window.location.href = res.data.checkout_url;
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.detail || "Unable to open Stripe checkout.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   if (!booking) {
     return (
       <div className="checkout-shell">
@@ -106,10 +130,17 @@ export default function PaymentCheckoutPage() {
         <div className="checkout-actions">
           <button
             className="bms-book-btn"
+            onClick={payWithStripe}
+            disabled={isProcessing || booking.booking_status === "CONFIRMED"}
+          >
+            {isProcessing ? "Processing..." : "Pay with Stripe"}
+          </button>
+          <button
+            className="ghost-btn"
             onClick={() => simulatePayment(true)}
             disabled={isProcessing || booking.booking_status === "CONFIRMED"}
           >
-            {isProcessing ? "Processing..." : "Pay with Test Card"}
+            Pay with Test Card
           </button>
           <button
             className="ghost-btn"

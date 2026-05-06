@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 import { getSafeImageUrl } from "../utils/imageUrl";
@@ -7,6 +7,7 @@ import { isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
 export default function EventDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [event, setEvent] = useState(null);
@@ -251,7 +252,8 @@ export default function EventDetailsPage() {
         }`
       );
 
-      window.location.href = res.data.checkout_url;
+      const checkoutUrl = new URL(res.data.checkout_url);
+      navigate(`${checkoutUrl.pathname}${checkoutUrl.search}`);
     } catch (err) {
       setMessage(err.response?.data?.detail || "Payment failed");
     }

@@ -68,6 +68,20 @@ def run_migration() -> None:
         else:
             print("coupons table already exists")
 
+        if table_exists("coupons"):
+            if not column_exists("coupons", "created_at"):
+                print("Adding coupons.created_at column...")
+                connection.execute(
+                    text("ALTER TABLE coupons ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+                )
+            else:
+                print("coupons.created_at already exists")
+
+            print("Backfilling coupon created_at values...")
+            connection.execute(
+                text("UPDATE coupons SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+            )
+
         if not table_exists("payments"):
             print("Creating payments table...")
             connection.execute(text("""
