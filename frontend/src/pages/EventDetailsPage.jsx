@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 import { getSafeImageUrl } from "../utils/imageUrl";
 import { isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
@@ -9,6 +10,7 @@ export default function EventDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language, t } = useLanguage();
 
   const [event, setEvent] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -26,6 +28,8 @@ export default function EventDetailsPage() {
   const [reviewMessage, setReviewMessage] = useState("");
   const [liveTickets, setLiveTickets] = useState(null);
   const [eventUpdates, setEventUpdates] = useState([]);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
 
   const fetchReviews = async () => {
     const [reviewRes, summaryRes] = await Promise.all([
@@ -163,7 +167,7 @@ export default function EventDetailsPage() {
     };
   }, [id]);
 
-  if (!event) return <h2>Loading event details...</h2>;
+  if (!event) return <h2>{t("loadingEventDetails")}</h2>;
 
   const ticketSource =
     liveTickets !== null ? liveTickets : event.available_tickets;
@@ -179,27 +183,29 @@ export default function EventDetailsPage() {
   const isSoldOut = availableTickets <= 0;
   const bannerImage = getSafeImageUrl(event.banner_image);
 
-  const eventDate = new Date(event.event_date).toLocaleDateString("en-IN", {
+  const dateLocale = language === "hi" ? "hi-IN" : "en-IN";
+
+  const eventDate = new Date(event.event_date).toLocaleDateString(dateLocale, {
     weekday: "short",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
 
-  const eventTime = new Date(event.event_date).toLocaleTimeString("en-IN", {
+  const eventTime = new Date(event.event_date).toLocaleTimeString(dateLocale, {
     hour: "2-digit",
     minute: "2-digit",
   });
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
-      setCouponMessage("Enter a coupon code first.");
+      setCouponMessage(t("enterCouponFirst"));
       setCouponResult(null);
       return;
     }
 
     if (isSoldOut) {
-      setCouponMessage("Tickets are sold out.");
+      setCouponMessage(t("ticketsSoldOut"));
       setCouponResult(null);
       return;
     }
@@ -214,7 +220,7 @@ export default function EventDetailsPage() {
       setCouponMessage(res.data.message);
     } catch (err) {
       setCouponResult(null);
-      setCouponMessage(err.response?.data?.detail || "Invalid coupon");
+      setCouponMessage(err.response?.data?.detail || t("invalidCoupon"));
     }
   };
 
@@ -224,22 +230,22 @@ export default function EventDetailsPage() {
     const requestedQuantity = Number(quantity);
 
     if (isExpired || isCancelled) {
-      setMessage("This event is no longer available for booking.");
+      setMessage(t("unavailableForBooking"));
       return;
     }
 
     if (isSoldOut) {
-      setMessage("Tickets are sold out.");
+      setMessage(t("ticketsSoldOut"));
       return;
     }
 
     if (!requestedQuantity || requestedQuantity <= 0) {
-      setMessage("Please enter a valid ticket quantity.");
+      setMessage(t("validTicketQuantity"));
       return;
     }
 
     if (requestedQuantity > availableTickets) {
-      setMessage(`Only ${availableTickets} ticket(s) available.`);
+      setMessage(t("onlyTicketsAvailable", { count: availableTickets }));
       return;
     }
 
@@ -255,7 +261,7 @@ export default function EventDetailsPage() {
       const checkoutUrl = new URL(res.data.checkout_url);
       navigate(`${checkoutUrl.pathname}${checkoutUrl.search}`);
     } catch (err) {
-      setMessage(err.response?.data?.detail || "Payment failed");
+      setMessage(err.response?.data?.detail || t("paymentFailed"));
     }
   };
 
@@ -273,10 +279,10 @@ export default function EventDetailsPage() {
       await fetchReviews();
       setReviewText("");
       setRating(5);
-      setReviewMessage("Review submitted successfully.");
+      setReviewMessage(t("reviewSubmitted"));
     } catch (err) {
       setReviewMessage(
-        err.response?.data?.detail || "Unable to submit review."
+        err.response?.data?.detail || t("reviewSubmitFailed")
       );
     }
   };
@@ -284,6 +290,46 @@ export default function EventDetailsPage() {
   const deleteReview = async (reviewId) => {
     await API.delete(`/reviews/${reviewId}`);
     await fetchReviews();
+  };
+
+  const getShareUrl = () => window.location.href;
+
+  const getShareText = () =>
+    t("shareEventText", { title: event.title, url: getShareUrl() });
+
+  const shareOnWhatsApp = () => {
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+      getShareText()
+    )}`;
+
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const copyEventLink = async () => {
+    setShareMessage("");
+
+    try {
+      const shareUrl = getShareUrl();
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const linkField = document.createElement("textarea");
+        linkField.value = shareUrl;
+        linkField.setAttribute("readonly", "");
+        linkField.style.position = "fixed";
+        linkField.style.opacity = "0";
+        document.body.appendChild(linkField);
+        linkField.select();
+        document.execCommand("copy");
+        document.body.removeChild(linkField);
+      }
+
+      setShareMessage(t("eventLinkCopied"));
+    } catch (error) {
+      console.error("Unable to copy event link:", error);
+      setShareMessage(t("copyFailed"));
+    }
   };
 
   return (
@@ -303,56 +349,94 @@ export default function EventDetailsPage() {
 
         <aside className="bms-booking-card">
           <div className="bms-info-row">
-            <span title="Date">📅</span>
+            <span title={t("date")}>📅</span>
             <p>{eventDate}</p>
           </div>
 
           <div className="bms-info-row">
-            <span title="Time">🕒</span>
+            <span title={t("time")}>🕒</span>
             <p>{eventTime}</p>
           </div>
 
           <div className="bms-info-row">
-            <span title="Category">🏷️</span>
+            <span title={t("category")}>🏷️</span>
             <p>{event.category}</p>
           </div>
 
           <div className="bms-info-row">
-            <span title="Location">📍</span>
+            <span title={t("location")}>📍</span>
             <p>{event.location}</p>
           </div>
 
           <div className="bms-info-row">
-            <span title="Tickets">🎟️</span>
+            <span title={t("tickets")}>🎟️</span>
             <p>
-              {availableTickets} ticket{availableTickets === 1 ? "" : "s"} available
+              {availableTickets}{" "}
+              {availableTickets === 1
+                ? t("ticketAvailable")
+                : t("ticketsAvailable")}
             </p>
           </div>
 
           {isSoldOut && (
             <div className="error-text animate-msg">
-              Tickets are sold out for this event.
+              {t("soldOutNotice")}
             </div>
           )}
 
           <div className="bms-divider"></div>
+
+          <div className="event-share-panel">
+            <button
+              type="button"
+              className="event-share-toggle"
+              onClick={() => {
+                setIsShareOpen((current) => !current);
+                setShareMessage("");
+              }}
+              aria-expanded={isShareOpen}
+            >
+              {t("shareEvent")}
+            </button>
+
+            {isShareOpen && (
+              <div className="event-share-popup">
+                <div>
+                  <p className="event-share-label">{t("inviteYourCircle")}</p>
+                  <strong>{event.title}</strong>
+                </div>
+
+                <button type="button" onClick={shareOnWhatsApp}>
+                  {t("whatsapp")}
+                </button>
+
+                <button type="button" onClick={copyEventLink}>
+                  {t("copyLink")}
+                </button>
+
+                {shareMessage && (
+                  <span className="event-share-message">{shareMessage}</span>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="bms-price-row">
             <div>
               <h3>Rs.{event.ticket_price}</h3>
               <p>
                 {isCancelled
-                  ? "Event Cancelled"
+                  ? t("eventCancelled")
                   : isExpired
-                  ? "Expired"
+                  ? t("expired")
                   : isSoldOut
-                  ? "Sold Out"
-                  : "Available"}
+                  ? t("soldOut")
+                  : t("available")}
               </p>
             </div>
 
             <div className="bms-quantity">
-              <label>Qty</label>
+              <label>{t("quantity")}</label>
               <input
                 type="number"
                 min="1"
@@ -372,24 +456,24 @@ export default function EventDetailsPage() {
 
           <div className="checkout-breakdown">
             <div>
-              <span>Subtotal</span>
+              <span>{t("subtotal")}</span>
               <strong>Rs.{bookingAmount}</strong>
             </div>
 
             <div>
-              <span>Discount</span>
+              <span>{t("discount")}</span>
               <strong>Rs.{couponResult?.discount_amount || 0}</strong>
             </div>
 
             <div className="summary-total">
-              <span>Pay now</span>
+              <span>{t("payNow")}</span>
               <strong>Rs.{payableAmount}</strong>
             </div>
           </div>
 
           <div className="coupon-row">
             <input
-              placeholder="Coupon code"
+              placeholder={t("couponPlaceholder")}
               value={couponCode}
               onChange={(e) => {
                 setCouponCode(e.target.value.toUpperCase());
@@ -404,7 +488,7 @@ export default function EventDetailsPage() {
               onClick={validateCoupon}
               disabled={isExpired || isCancelled || isSoldOut}
             >
-              Apply
+              {t("apply")}
             </button>
           </div>
 
@@ -426,32 +510,35 @@ export default function EventDetailsPage() {
             disabled={isExpired || isCancelled || isSoldOut}
           >
             {isCancelled
-              ? "Event Cancelled"
+              ? t("eventCancelled")
               : isExpired
-              ? "Expired"
+              ? t("expired")
               : isSoldOut
-              ? "Sold Out"
-              : "Book Now"}
+              ? t("soldOut")
+              : t("bookNow")}
           </button>
         </aside>
       </div>
 
       <section className="bms-about-section">
-        <h2>About the event</h2>
+        <h2>{t("aboutEvent")}</h2>
         <p>{event.description}</p>
       </section>
 
       <section className="bms-about-section live-updates-section">
         <div className="live-updates-header">
           <div>
-            <p className="eyebrow-text">Live Updates</p>
-            <h2>Announcements</h2>
+            <p className="eyebrow-text">{t("liveUpdates")}</p>
+            <h2>{t("announcements")}</h2>
           </div>
-          <span>{eventUpdates.length} update{eventUpdates.length === 1 ? "" : "s"}</span>
+          <span>
+            {eventUpdates.length}{" "}
+            {eventUpdates.length === 1 ? t("update") : t("updates")}
+          </span>
         </div>
 
         {eventUpdates.length === 0 ? (
-          <p className="subtle-text">No live announcements have been posted yet.</p>
+          <p className="subtle-text">{t("noAnnouncements")}</p>
         ) : (
           <div className="live-updates-list">
             {eventUpdates.map((update) => (
@@ -463,10 +550,12 @@ export default function EventDetailsPage() {
               >
                 <div>
                   <strong>
-                    {update.is_important ? "Important Announcement" : "Event Update"}
+                    {update.is_important
+                      ? t("importantAnnouncement")
+                      : t("eventUpdate")}
                   </strong>
                   <time>
-                    {new Date(update.created_at).toLocaleString("en-IN", {
+                    {new Date(update.created_at).toLocaleString(dateLocale, {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -485,10 +574,12 @@ export default function EventDetailsPage() {
       <section className="reviews-section">
         <div className="reviews-header">
           <div>
-            <h2>Ratings and reviews</h2>
+            <h2>{t("ratingsAndReviews")}</h2>
             <p className="subtle-text">
-              {reviewSummary.average_rating || 0} / 5 from{" "}
-              {reviewSummary.reviews_count || 0} reviews
+              {t("reviewsFrom", {
+                rating: reviewSummary.average_rating || 0,
+                count: reviewSummary.reviews_count || 0,
+              })}
             </p>
           </div>
 
@@ -514,11 +605,11 @@ export default function EventDetailsPage() {
           <textarea
             value={reviewText}
             onChange={(e) => setReviewText(e.target.value)}
-            placeholder="Share your experience after attending this event..."
+            placeholder={t("reviewPlaceholder")}
           />
 
           <button className="bms-book-btn" type="submit">
-            Submit Review
+            {t("submitReview")}
           </button>
 
           {reviewMessage && (
@@ -534,14 +625,14 @@ export default function EventDetailsPage() {
                 <span>{"★".repeat(review.rating)}</span>
               </div>
 
-              <p>{review.review_text || "No written review."}</p>
+              <p>{review.review_text || t("noWrittenReview")}</p>
 
               {user?.id === review.user_id && (
                 <button
                   className="ghost-btn"
                   onClick={() => deleteReview(review.id)}
                 >
-                  Delete
+                  {t("delete")}
                 </button>
               )}
             </div>
@@ -551,3 +642,5 @@ export default function EventDetailsPage() {
     </div>
   );
 }
+
+

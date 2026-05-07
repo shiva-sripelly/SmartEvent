@@ -1,26 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api/axios";
-
-const quickSuggestions = [
-  "Trending events",
-  "My bookings",
-  "Suggest music events this weekend",
-  "Help with ticket issues",
-];
-
-const initialMessages = [
-  {
-    role: "assistant",
-    content: "Hi, I am your SmartEvent assistant. Ask me to find events, show bookings, or help with tickets.",
-  },
-];
+import useLanguage from "../context/useLanguage";
 
 export default function ChatbotWidget() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: t("chatbotInitialMessage"),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [latestPayload, setLatestPayload] = useState(null);
@@ -59,7 +52,7 @@ export default function ChatbotWidget() {
           role: "assistant",
           content:
             err.response?.data?.detail ||
-            "I could not reach the assistant right now. Please try again.",
+            t("chatbotUnavailable"),
         },
       ]);
     } finally {
@@ -75,13 +68,13 @@ export default function ChatbotWidget() {
   return (
     <div className={`chatbot-widget ${isOpen ? "open" : ""}`}>
       {isOpen && (
-        <section className="chatbot-panel" aria-label="SmartEvent chatbot">
+        <section className="chatbot-panel" aria-label={t("chatbotLabel")}>
           <div className="chatbot-header">
             <div>
-              <strong>SmartEvent Assistant</strong>
-              <span>Event discovery and support</span>
+              <strong>{t("chatbotAssistant")}</strong>
+              <span>{t("chatbotSubtitle")}</span>
             </div>
-            <button type="button" onClick={() => setIsOpen(false)} aria-label="Close chat">
+            <button type="button" onClick={() => setIsOpen(false)} aria-label={t("navClose")}>
               X
             </button>
           </div>
@@ -121,16 +114,23 @@ export default function ChatbotWidget() {
                 type="button"
                 onClick={() => handleAction(latestPayload.action_path)}
               >
-                Open related page
+                {t("openRelatedPage")}
               </button>
             )}
 
-            {loading && <div className="chatbot-message assistant typing">Thinking...</div>}
+            {loading && <div className="chatbot-message assistant typing">{t("thinking")}</div>}
             <div ref={messagesEndRef}></div>
           </div>
 
           <div className="chatbot-suggestions">
-            {(latestPayload?.suggestions?.length ? latestPayload.suggestions : quickSuggestions).map((suggestion) => (
+            {(latestPayload?.suggestions?.length
+              ? latestPayload.suggestions
+              : [
+                  t("chatbotTrending"),
+                  t("chatbotBookings"),
+                  t("chatbotMusic"),
+                  t("chatbotTickets"),
+                ]).map((suggestion) => (
               <button type="button" onClick={() => sendMessage(suggestion)} key={suggestion}>
                 {suggestion}
               </button>
@@ -147,10 +147,10 @@ export default function ChatbotWidget() {
             <input
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Ask about events or tickets..."
+              placeholder={t("askEventsTickets")}
             />
             <button type="submit" disabled={loading}>
-              Send
+              {t("send")}
             </button>
           </form>
         </section>
@@ -160,12 +160,38 @@ export default function ChatbotWidget() {
         className="chatbot-toggle"
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
-        aria-label="Open SmartEvent assistant"
+        aria-label={t("openAssistant")}
       >
         <span className="chatbot-toggle-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" focusable="false">
+            <path
+              d="M13.5 25.5v-3.1c0-6.2 4.7-10.9 10.5-10.9s10.5 4.7 10.5 10.9v3.1"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="3.4"
+              strokeLinecap="round"
+            />
+            <path
+              d="M11.5 25.2c0-2.1 1.7-3.8 3.8-3.8h2.2v9.2h-2.2c-2.1 0-3.8-1.7-3.8-3.8v-1.6Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M30.5 21.4h2.2c2.1 0 3.8 1.7 3.8 3.8v1.6c0 2.1-1.7 3.8-3.8 3.8h-2.2v-9.2Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M33.8 31.1c-.8 3-3.2 5.4-7 5.4H24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+            />
+            <circle cx="22" cy="36.5" r="2.2" fill="#ffffff" />
+          </svg>
           🤖
         </span>
       </button>
     </div>
   );
 }
+

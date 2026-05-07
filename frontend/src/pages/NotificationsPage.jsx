@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 
 export default function NotificationsPage() {
+  const { t } = useLanguage();
   const [notifications, setNotifications] = useState([]);
 
   const fetchNotifications = async () => {
@@ -35,14 +37,14 @@ export default function NotificationsPage() {
     <div className="page-container">
       <div className="page-header-row">
         <div>
-          <h2>Notifications</h2>
-          <p className="subtle-text">Booking, payment, event, and system updates in one place.</p>
+          <h2>{t("navNotifications")}</h2>
+          <p className="subtle-text">{t("notificationsSubtitle")}</p>
         </div>
-        <button className="download-btn" onClick={markAllAsRead}>Mark all as read</button>
+        <button className="download-btn" onClick={markAllAsRead}>{t("markAllRead")}</button>
       </div>
 
       {notifications.length === 0 ? (
-        <div className="card empty-state">No notifications yet</div>
+        <div className="card empty-state">{t("navNoNotifications")}</div>
       ) : (
         notifications.map((n) => (
           <div className={`card notification-card ${n.is_read ? "read" : "unread"}`} key={n.id}>
@@ -52,14 +54,14 @@ export default function NotificationsPage() {
                 <h4>{n.title}</h4>
               </div>
               <span className={`status-pill ${n.is_read ? "confirmed" : "pending"}`}>
-                {n.is_read ? "Read" : "Unread"}
+                {n.is_read ? t("read") : t("unread")}
               </span>
             </div>
             <p>{n.message}</p>
 
             {!n.is_read && (
               <button className="ghost-btn" onClick={() => markAsRead(n.id)}>
-                Mark as Read
+                {t("markAsRead")}
               </button>
             )}
           </div>

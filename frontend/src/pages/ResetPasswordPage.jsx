@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 
 export default function ResetPasswordPage() {
+  const { t } = useLanguage();
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
@@ -29,25 +31,25 @@ export default function ResetPasswordPage() {
         confirm_password: form.confirmPassword,
       });
 
-      setMessage("Password reset successful. Redirecting to login...");
+      setMessage(t("passwordResetSuccessful"));
 
       setTimeout(() => {
         navigate("/login");
       }, 1500);
     } catch (err) {
-      setMessage(err.response?.data?.detail || "Password reset failed");
+      setMessage(err.response?.data?.detail || t("passwordResetFailed"));
     }
   };
 
   return (
     <div className="auth-container">
-      <h2>Reset Password</h2>
+      <h2>{t("resetPassword")}</h2>
 
       <form onSubmit={handleReset}>
         <input
           type="password"
           name="newPassword"
-          placeholder="Enter New Password"
+          placeholder={t("enterNewPassword")}
           value={form.newPassword}
           onChange={handleChange}
           required
@@ -56,16 +58,18 @@ export default function ResetPasswordPage() {
         <input
           type="password"
           name="confirmPassword"
-          placeholder="Confirm New Password"
+          placeholder={t("confirmNewPassword")}
           value={form.confirmPassword}
           onChange={handleChange}
           required
         />
 
-        <button type="submit">Reset Password</button>
+        <button type="submit">{t("resetPassword")}</button>
       </form>
 
       {message && <p className="success-message">{message}</p>}
     </div>
   );
 }
+
+

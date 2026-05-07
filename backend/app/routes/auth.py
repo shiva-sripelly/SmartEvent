@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from uuid import uuid4
 from app.database import get_db
-from app.models import Booking, Event, User
+from app.models import Booking, Event, Review, User
 from app.schemas import (
     UserRegister,
     UserLogin,
@@ -20,6 +20,15 @@ from app.core.security import (
 )
 from app.utils.email import send_email
 from app.utils.event_status import is_event_expired
+from app.utils.rewards import (
+    BOOKING_REWARD_POINTS,
+    REFERRAL_REWARD_POINTS,
+    REVIEW_REWARD_POINTS,
+    ensure_referral_record,
+    get_referral_count,
+    get_reward_points,
+    sync_user_reward_history,
+)
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 import os
@@ -32,6 +41,24 @@ ALGORITHM = os.getenv("ALGORITHM")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def generate_referral_code(db: Session) -> str:
+    while True:
+        code = f"SE{uuid4().hex[:8].upper()}"
+        exists = db.query(User).filter(User.referral_code == code).first()
+        if not exists:
+            return code
+
+
+def ensure_user_referral_code(db: Session, user: User) -> str:
+    if user.referral_code:
+        return user.referral_code
+
+    user.referral_code = generate_referral_code(db)
+    db.commit()
+    db.refresh(user)
+    return user.referral_code
 
 
 def save_profile_picture(upload_file: UploadFile) -> str:
@@ -55,16 +82,40 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    referrer = None
+    submitted_referral_code = user.referral_code.strip().upper() if user.referral_code else None
+
+    if submitted_referral_code:
+        referrer = (
+            db.query(User)
+            .filter(User.referral_code == submitted_referral_code)
+            .first()
+        )
+
+        if not referrer:
+            raise HTTPException(status_code=400, detail="Invalid referral code")
+
     new_user = User(
         username=user.username,
         email=user.email,
         hashed_password=hash_password(user.password),
+        referral_code=generate_referral_code(db),
+        referred_by_id=referrer.id if referrer else None,
         role="USER"
     )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    if referrer and submitted_referral_code:
+        ensure_referral_record(
+            db,
+            referrer=referrer,
+            referred_user=new_user,
+            referral_code=submitted_referral_code,
+        )
+        db.commit()
 
     send_email(
         to_email=new_user.email,
@@ -129,7 +180,11 @@ SmartEvent Team
 
 
 @router.get("/profile", response_model=UserResponse)
-def get_profile(current_user: User = Depends(get_current_user)):
+def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ensure_user_referral_code(db, current_user)
     return current_user
 
 
@@ -207,6 +262,15 @@ def get_profile_summary(
             upcoming_events += 1
 
     latest_booking = bookings[0] if bookings else None
+    referral_code = ensure_user_referral_code(db, current_user)
+    sync_user_reward_history(db, current_user.id)
+    db.commit()
+
+    review_reward_points = get_reward_points(db, current_user.id, "REVIEW")
+    booking_reward_points = get_reward_points(db, current_user.id, "BOOKING")
+    referral_reward_points = get_reward_points(db, current_user.id, "REFERRAL")
+    review_count = db.query(Review).filter(Review.user_id == current_user.id).count()
+    referral_count = get_referral_count(db, current_user.id)
 
     return {
         "total_bookings": len(bookings),
@@ -217,6 +281,31 @@ def get_profile_summary(
         "total_tickets": total_tickets,
         "total_spent": total_spent,
         "latest_booking_id": latest_booking.id if latest_booking else None,
+        "reward_points": booking_reward_points + review_reward_points + referral_reward_points,
+        "reward_points_from_bookings": booking_reward_points,
+        "reward_points_from_reviews": review_reward_points,
+        "reward_points_from_referrals": referral_reward_points,
+        "review_count": review_count,
+        "referral_code": referral_code,
+        "referral_count": referral_count,
+    }
+
+
+@router.get("/referral")
+def get_referral_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    referral_code = ensure_user_referral_code(db, current_user)
+    sync_user_reward_history(db, current_user.id)
+    db.commit()
+    referral_count = get_referral_count(db, current_user.id)
+
+    return {
+        "referral_code": referral_code,
+        "referral_count": referral_count,
+        "reward_points_from_referrals": get_reward_points(db, current_user.id, "REFERRAL"),
+        "points_per_referral": REFERRAL_REWARD_POINTS,
     }
 
 

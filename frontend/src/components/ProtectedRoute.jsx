@@ -1,10 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
 
-  if (loading) return <h2 className="loading">Loading...</h2>;
+  if (loading) return <h2 className="loading">{t("loading")}</h2>;
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -14,3 +16,4 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
 
   return children;
 }
+

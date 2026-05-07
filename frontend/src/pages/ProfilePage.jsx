@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 import { useAuth } from "../context/AuthContext";
 import { getSafeImageUrl } from "../utils/imageUrl";
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const { user, fetchProfile } = useAuth();
   const [form, setForm] = useState({
     username: "",
@@ -36,7 +38,7 @@ export default function ProfilePage() {
     };
 
     fetchSummary().catch((err) => {
-      setError(err.response?.data?.detail || "Unable to load activity summary.");
+      setError(err.response?.data?.detail || t("profileUpdateFailed"));
     });
   }, [user]);
 
@@ -71,9 +73,9 @@ export default function ProfilePage() {
       });
       await fetchProfile();
       setForm((currentForm) => ({ ...currentForm, profile_picture: null }));
-      setMessage("Profile updated successfully.");
+      setMessage(t("profileUpdated"));
     } catch (err) {
-      setError(err.response?.data?.detail || "Unable to update profile.");
+      setError(err.response?.data?.detail || t("profileUpdateFailed"));
     } finally {
       setSaving(false);
     }
@@ -87,8 +89,8 @@ export default function ProfilePage() {
     <div className="page-container profile-page">
       <div className="page-header-row">
         <div>
-          <h2>My Profile</h2>
-          <p className="subtle-text">Manage your account details and view booking activity.</p>
+          <h2>{t("myProfile")}</h2>
+          <p className="subtle-text">{t("profileSubtitle")}</p>
         </div>
       </div>
 
@@ -96,26 +98,26 @@ export default function ProfilePage() {
         <section className="overview-card profile-card">
           <div className="profile-avatar">
             {previewUrl ? (
-              <img src={previewUrl} alt={`${form.username || "User"} profile`} />
+              <img src={previewUrl} alt={`${form.username || t("smartEventUser")} profile`} />
             ) : (
               <span>{initials}</span>
             )}
           </div>
 
           <div>
-            <h3>{user?.username || "SmartEvent User"}</h3>
+            <h3>{user?.username || t("smartEventUser")}</h3>
             <p>{user?.email}</p>
             <span className="status-pill confirmed">{user?.role || "USER"}</span>
           </div>
         </section>
 
         <form className="admin-form profile-form" onSubmit={handleSubmit}>
-          <h3>Edit Profile</h3>
+          <h3>{t("editProfile")}</h3>
 
           <div className="admin-form-grid">
             <input
               name="username"
-              placeholder="Username"
+              placeholder={t("username")}
               value={form.username}
               onChange={(event) => updateField("username", event.target.value)}
               required
@@ -124,7 +126,7 @@ export default function ProfilePage() {
             <input
               name="email"
               type="email"
-              placeholder="Email"
+              placeholder={t("email")}
               value={form.email}
               onChange={(event) => updateField("email", event.target.value)}
               required
@@ -137,7 +139,7 @@ export default function ProfilePage() {
             />
 
             <button className="admin-add-btn" type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save Profile"}
+              {saving ? t("saving") : t("saveProfile")}
             </button>
           </div>
 
@@ -147,34 +149,51 @@ export default function ProfilePage() {
       </div>
 
       <section className="overview-card">
-        <h3>Activity Summary</h3>
+        <h3>{t("activitySummary")}</h3>
         <div className="stats-grid profile-summary-grid">
           <div className="stat-card">
-            <h3>Total Bookings</h3>
+            <h3>{t("totalBookings")}</h3>
             <p>{summary?.total_bookings || 0}</p>
           </div>
           <div className="stat-card">
-            <h3>Upcoming Events</h3>
+            <h3>{t("upcomingEvents")}</h3>
             <p>{summary?.upcoming_events || 0}</p>
           </div>
           <div className="stat-card">
-            <h3>Tickets Booked</h3>
+            <h3>{t("ticketsBooked")}</h3>
             <p>{summary?.total_tickets || 0}</p>
           </div>
           <div className="stat-card">
-            <h3>Total Spent</h3>
+            <h3>{t("totalSpent")}</h3>
             <p>Rs.{summary?.total_spent || 0}</p>
           </div>
           <div className="stat-card">
-            <h3>Pending</h3>
+            <h3>{t("pending")}</h3>
             <p>{summary?.pending_bookings || 0}</p>
           </div>
           <div className="stat-card">
-            <h3>Closed Events</h3>
+            <h3>{t("closedEvents")}</h3>
             <p>{summary?.cancelled_or_expired || 0}</p>
+          </div>
+          <div className="stat-card">
+            <h3>{t("rewardPoints")}</h3>
+            <p>{summary?.reward_points || 0}</p>
+            <span className="subtle-text">{t("rewardPointsHelp")}</span>
+          </div>
+          <div className="stat-card">
+            <h3>{t("successfulReferrals")}</h3>
+            <p>{summary?.referral_count || 0}</p>
+            <span className="subtle-text">
+              {t("referralPointsValue", {
+                points: summary?.reward_points_from_referrals || 0,
+              })}
+            </span>
           </div>
         </div>
       </section>
     </div>
   );
 }
+
+
+

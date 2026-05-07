@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 
 export default function AdminLoginPage() {
+  const { t } = useLanguage();
   const { login, logout, user } = useAuth();
   const navigate = useNavigate();
 
@@ -32,7 +34,7 @@ export default function AdminLoginPage() {
 
       if (!profile || (profile.role !== "ADMIN" && profile.role !== "ORGANIZER")) {
         logout();
-        alert("Admin/Organizer access required");
+        alert(t("adminOrganizerRequired"));
         return;
       }
 
@@ -42,19 +44,19 @@ export default function AdminLoginPage() {
         navigate("/organizer");
       }
     } catch {
-      alert("Admin login failed");
+      alert(t("adminLoginFailed"));
     }
   };
 
   return (
     <div className="auth-container">
-      <h2>Admin / Organizer Login</h2>
+      <h2>{t("adminOrganizerLogin")}</h2>
 
       <form onSubmit={handleSubmit}>
         <input
           type="email"
           name="email"
-          placeholder="Enter Admin Email"
+          placeholder={t("enterAdminEmail")}
           onChange={handleChange}
           required
         />
@@ -62,13 +64,15 @@ export default function AdminLoginPage() {
         <input
           type="password"
           name="password"
-          placeholder="Enter Admin Password"
+          placeholder={t("enterAdminPassword")}
           onChange={handleChange}
           required
         />
 
-        <button type="submit">Login as Admin</button>
+        <button type="submit">{t("loginAsAdmin")}</button>
       </form>
     </div>
   );
 }
+
+

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 
 export default function PaymentSuccessPage() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const paymentId = searchParams.get("payment_id");
   const sessionId = searchParams.get("session_id");
@@ -27,30 +29,35 @@ export default function PaymentSuccessPage() {
   return (
     <div className="card payment-success-card">
       <div className={isFailed ? "failure-hero" : "success-hero"}>
-        {isFailed ? "Payment Failed" : "Payment Successful"}
+        {isFailed ? t("paymentFailedTitle") : t("paymentSuccessful")}
       </div>
       <p>
         {isFailed
-          ? "Your payment could not be completed. Please retry checkout."
-          : "Your booking is confirmed and your ticket is being prepared."}
+          ? t("paymentFailureCopy")
+          : t("paymentSuccessCopy")}
       </p>
       {payment && (
         <div className="payment-reference">
-          <span>Transaction reference</span>
+          <span>{t("transactionReference")}</span>
           <strong>{payment.transaction_id}</strong>
-          <span>Amount</span>
+          <span>{t("amount")}</span>
           <strong>Rs.{payment.amount}</strong>
         </div>
       )}
 
       <div className="payment-actions">
         <Link to="/tickets" className="download-btn">
-          View My Tickets
+          {t("viewMyTickets")}
         </Link>
         <Link to="/bookings" className="download-btn secondary">
-          My Bookings
+          {t("myBookings")}
         </Link>
       </div>
     </div>
   );
 }
+
+
+
+
+

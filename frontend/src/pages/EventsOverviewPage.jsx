@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 import API from "../api/axios";
 import { getDisplayEventStatus } from "../utils/eventStatus";
 
 export default function EventsOverviewPage() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
@@ -14,7 +16,7 @@ export default function EventsOverviewPage() {
       const response = await API.get("/admin/all-events");
       setEvents(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || "Unable to load events.");
+      setError(err.response?.data?.detail || t("eventsLoadFailed"));
     }
   };
 
@@ -25,28 +27,28 @@ export default function EventsOverviewPage() {
   }, [loading, user]);
 
   if (loading || !user) {
-    return <h2 className="loading">Loading events...</h2>;
+    return <h2 className="loading">{t("loadingEvents")}</h2>;
   }
 
   return (
     <div className="page-container">
       <div className="admin-header admin-header-compact">
         <div>
-          <h2>Events Overview</h2>
-          <p className="admin-greeting">Browse platform events and lifecycle status.</p>
+          <h2>{t("eventsOverview")}</h2>
+          <p className="admin-greeting">{t("eventsOverviewSubtitle")}</p>
         </div>
         <div className="admin-action-group">
           <Link className="admin-nav-link" to="/admin">
-            Dashboard
+            {t("dashboard")}
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
-            Analytics
+            {t("platformAnalytics")}
           </Link>
           <Link className="admin-nav-link" to="/admin/users">
-            Users
+            {t("users")}
           </Link>
           <Link className="admin-nav-link" to="/admin/bookings">
-            Bookings
+            {t("bookings")}
           </Link>
         </div>
       </div>
@@ -54,17 +56,17 @@ export default function EventsOverviewPage() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="overview-card">
-        <h3>All Events</h3>
+        <h3>{t("allEvents")}</h3>
         <div className="overview-table-container">
           <table className="overview-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Status</th>
-                <th>Organizer ID</th>
-                <th>Price</th>
+                <th>{t("id")}</th>
+                <th>{t("title")}</th>
+                <th>{t("category")}</th>
+                <th>{t("status")}</th>
+                <th>{t("organizerId")}</th>
+                <th>{t("price")}</th>
               </tr>
             </thead>
             <tbody>
@@ -81,7 +83,7 @@ export default function EventsOverviewPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No events found.</td>
+                  <td colSpan="6">{t("noEventsFound")}</td>
                 </tr>
               )}
             </tbody>
@@ -91,3 +93,6 @@ export default function EventsOverviewPage() {
     </div>
   );
 }
+
+
+

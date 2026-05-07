@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 import { useAuth } from "../context/AuthContext";
 import { getDisplayEventStatus, isEventUnavailable } from "../utils/eventStatus";
 
 export default function AdminPage() {
+  const { t } = useLanguage();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
@@ -49,7 +51,7 @@ export default function AdminPage() {
       const res = await API.get(`/admin/events/${eventId}/insights`);
       setEventInsights(res.data);
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to load event insights");
+      alert(err.response?.data?.detail || t("insightsLoadFailed"));
     } finally {
       setInsightsLoading(false);
     }
@@ -119,7 +121,7 @@ export default function AdminPage() {
     });
 
     if (isFormInvalid) {
-      alert("Please fill in all event fields, including the event image.");
+      alert(t("fillAllEventFields"));
       return;
     }
 
@@ -139,30 +141,30 @@ export default function AdminPage() {
         await API.put(`/admin/events/${selectedEventId}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        alert("Event updated");
+        alert(t("eventUpdated"));
       } else {
         await API.post("/admin/events", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        alert("Event added");
+        alert(t("eventAdded"));
       }
 
       handleCancelEdit();
       fetchEvents();
       fetchStats();
     } catch {
-      alert("Failed to add event");
+      alert(t("eventAddFailed"));
     }
   };
 
   const handleCancel = async (id) => {
     try {
       await API.put(`/admin/events/${id}/cancel`);
-      alert("Event cancelled & users notified");
+      alert(t("eventCancelledNotify"));
       fetchEvents();
       fetchStats();
     } catch (err) {
-      alert(err.response?.data?.detail || "Cancel failed");
+      alert(err.response?.data?.detail || t("cancelFailed"));
     }
   };
 
@@ -183,7 +185,7 @@ export default function AdminPage() {
     const message = (formState.message || "").trim();
 
     if (!message) {
-      alert("Enter an announcement message first");
+      alert(t("enterAnnouncementFirst"));
       return;
     }
 
@@ -193,9 +195,9 @@ export default function AdminPage() {
         is_important: formState.is_important ? 1 : 0,
       });
       updateAnnouncementForm(eventId, { message: "", is_important: 0 });
-      alert("Event update posted");
+      alert(t("eventUpdatePosted"));
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to post event update");
+      alert(err.response?.data?.detail || t("eventUpdatePostFailed"));
     }
   };
 
@@ -203,28 +205,28 @@ export default function AdminPage() {
     <div className="page-container">
       <div className="admin-header">
         <div>
-          <h2>{user?.role === "ADMIN" ? "Admin Dashboard" : "Organizer Dashboard"}</h2>
-          <p className="admin-greeting">Hi {user?.username || (user?.role === "ADMIN" ? "Admin" : "Organizer")}</p>
+          <h2>{user?.role === "ADMIN" ? t("adminDashboard") : t("organizerDashboard")}</h2>
+          <p className="admin-greeting">{t("navGreeting")} {user?.username || (user?.role === "ADMIN" ? t("admin") : t("organizer"))}</p>
         </div>
 
         <button className="admin-logout-btn" onClick={handleAdminLogout}>
-          Logout
+          {t("navLogout")}
         </button>
       </div>
 
       {user?.role === "ADMIN" && (
         <div className="admin-quick-links">
           <Link className="admin-quick-link" to="/admin/analytics">
-            Platform Analytics
+            {t("platformAnalyticsLink")}
           </Link>
           <Link className="admin-quick-link" to="/admin/users">
-            Users Overview
+            {t("usersOverview")}
           </Link>
           <Link className="admin-quick-link" to="/admin/events">
-            Events Overview
+            {t("eventsOverview")}
           </Link>
           <Link className="admin-quick-link" to="/admin/bookings">
-            Booking Overview
+            {t("bookingOverview")}
           </Link>
         </div>
       )}
@@ -232,37 +234,37 @@ export default function AdminPage() {
       {stats && (
         <div className="stats-grid">
           <div className="stat-card">
-            <h3>Total Events</h3>
+            <h3>{t("totalEvents")}</h3>
             <p>{stats.total_events}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Upcoming Events</h3>
+            <h3>{t("upcomingEvents")}</h3>
             <p>{stats.upcoming_events}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Ongoing Events</h3>
+            <h3>{t("ongoingEvents")}</h3>
             <p>{stats.ongoing_events}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Completed Events</h3>
+            <h3>{t("completedEvents")}</h3>
             <p>{stats.completed_events}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Cancelled Events</h3>
+            <h3>{t("cancelledEvents")}</h3>
             <p>{stats.cancelled_events}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Total Bookings</h3>
+            <h3>{t("totalBookings")}</h3>
             <p>{stats.total_bookings}</p>
           </div>
 
           <div className="stat-card">
-            <h3>Total Revenue</h3>
+            <h3>{t("totalRevenue")}</h3>
             <p>₹{stats.total_revenue}</p>
           </div>
         </div>
@@ -272,40 +274,40 @@ export default function AdminPage() {
         <section className="card insights-card">
           <div className="insights-header">
             <div>
-              <h3>Event Insights</h3>
+              <h3>{t("eventInsights")}</h3>
               <p>{eventInsights.title}</p>
             </div>
             <button className="admin-cancel-btn" onClick={() => setEventInsights(null)}>
-              Close Insights
+              {t("closeInsights")}
             </button>
           </div>
 
           {insightsLoading ? (
-            <p>Loading insights...</p>
+            <p>{t("loadingInsights")}</p>
           ) : (
             <div className="insights-grid">
               <div className="insight-box">
                 <h4>{eventInsights.total_tickets_sold}</h4>
-                <p>Tickets Sold</p>
+                <p>{t("ticketsSold")}</p>
               </div>
               <div className="insight-box">
                 <h4>{eventInsights.remaining_tickets}</h4>
-                <p>Remaining Tickets</p>
+                <p>{t("remainingTickets")}</p>
               </div>
               <div className="insight-box">
                 <h4>₹{eventInsights.total_revenue}</h4>
-                <p>Total Revenue</p>
+                <p>{t("totalRevenue")}</p>
               </div>
               <div className="insight-box">
                 <h4>{eventInsights.booking_count}</h4>
-                <p>Booking Count</p>
+                <p>{t("bookingCount")}</p>
               </div>
             </div>
           )}
 
           {!insightsLoading && (
             <div className="insight-progress">
-              <p>Sales Progress</p>
+              <p>{t("salesProgress")}</p>
               <div className="progress-track">
                 <div
                   className="progress-fill"
@@ -320,7 +322,7 @@ export default function AdminPage() {
                 />
               </div>
               <p>
-                {eventInsights.total_tickets_sold} / {eventInsights.total_tickets_sold + eventInsights.remaining_tickets} tickets sold
+                {t("ticketsSoldProgress", { sold: eventInsights.total_tickets_sold, total: eventInsights.total_tickets_sold + eventInsights.remaining_tickets })}
               </p>
             </div>
           )}
@@ -328,12 +330,12 @@ export default function AdminPage() {
       )}
 
       <form className="card admin-form" onSubmit={handleAddEvent}>
-        <h3>Add Event</h3>
+        <h3>{t("addEvent")}</h3>
 
         <div className="admin-form-grid">
           <input
             name="title"
-            placeholder="Title"
+            placeholder={t("title")}
             onChange={handleChange}
             value={form.title}
             required
@@ -341,7 +343,7 @@ export default function AdminPage() {
 
           <input
             name="description"
-            placeholder="Description"
+            placeholder={t("description")}
             onChange={handleChange}
             value={form.description}
             required
@@ -354,19 +356,19 @@ export default function AdminPage() {
             required
           >
             <option value="" disabled>
-              Select Category
+              {t("selectCategory")}
             </option>
-            <option value="comedy">Comedy</option>
-            <option value="music">Music</option>
-            <option value="tech">Tech</option>
-            <option value="business">Business</option>
-            <option value="sports">Sports</option>
-            <option value="workshop">Workshop</option>
+            <option value="comedy">{t("comedy")}</option>
+            <option value="music">{t("music")}</option>
+            <option value="tech">{t("tech")}</option>
+            <option value="business">{t("business")}</option>
+            <option value="sports">{t("sports")}</option>
+            <option value="workshop">{t("workshop")}</option>
           </select>
 
           <input
             name="location"
-            placeholder="Location"
+            placeholder={t("location")}
             onChange={handleChange}
             value={form.location}
             required
@@ -382,7 +384,7 @@ export default function AdminPage() {
 
           <input
             name="ticket_price"
-            placeholder="Price"
+            placeholder={t("price")}
             onChange={handleChange}
             value={form.ticket_price}
             required
@@ -399,14 +401,14 @@ export default function AdminPage() {
 
           {imagePreview && (
             <div className="image-preview-card">
-              <p>Selected image preview:</p>
-              <img src={imagePreview} alt="Selected event banner preview" />
+              <p>{t("selectedImagePreview")}</p>
+              <img src={imagePreview} alt={t("selectedEventBannerPreview")} />
             </div>
           )}
 
           <div className="admin-form-actions">
             <button className="admin-add-btn" type="submit">
-              {selectedEventId ? "Update Event" : "Add Event"}
+              {selectedEventId ? t("updateEvent") : t("addEvent")}
             </button>
             {selectedEventId && (
               <button
@@ -414,14 +416,14 @@ export default function AdminPage() {
                 className="admin-cancel-btn"
                 onClick={handleCancelEdit}
               >
-                Cancel Edit
+                Cancel {t("edit")}
               </button>
             )}
           </div>
         </div>
       </form>
 
-      <h3 className="admin-section-title">All Events</h3>
+      <h3 className="admin-section-title">{t("allEvents")}</h3>
 
       <div className="admin-events-grid">
         {events.map((e) => {
@@ -432,7 +434,7 @@ export default function AdminPage() {
           <div className="card admin-event-card" key={e.id}>
             {e.banner_image && (
               <div className="admin-event-thumb">
-                <img src={e.banner_image} alt={`${e.title} thumbnail`} />
+                <img src={e.banner_image} alt={`${e.title} {t("thumbnail")}`} />
               </div>
             )}
 
@@ -441,7 +443,7 @@ export default function AdminPage() {
             <p>₹{e.ticket_price}</p>
 
             <p>
-              Status:{" "}
+              {t("status")}:{" "}
               <strong
                 style={{
                   color:
@@ -461,7 +463,7 @@ export default function AdminPage() {
                     className="admin-info-btn"
                     onClick={() => fetchEventInsights(e.id)}
                   >
-                    View Insights
+                    {t("viewInsights")}
                   </button>
                   {!isUnavailable && (
                     <>
@@ -469,13 +471,13 @@ export default function AdminPage() {
                         className="admin-edit-btn"
                         onClick={() => handleEditEvent(e)}
                       >
-                        Edit
+                        {t("edit")}
                       </button>
                       <button
                         className="admin-cancel-btn"
                         onClick={() => handleCancel(e.id)}
                       >
-                        Cancel Event
+                        {t("cancelEvent")}
                       </button>
                     </>
                   )}
@@ -483,7 +485,7 @@ export default function AdminPage() {
 
                 <div className="event-update-composer">
                   <textarea
-                    placeholder="Post a live update for attendees..."
+                    placeholder={t("postLiveUpdate")}
                     value={updateForms[e.id]?.message || ""}
                     onChange={(event) =>
                       updateAnnouncementForm(e.id, {
@@ -501,14 +503,14 @@ export default function AdminPage() {
                         })
                       }
                     />
-                    Important
+                    {t("important")}
                   </label>
                   <button
                     className="admin-add-btn"
                     type="button"
                     onClick={() => handlePostUpdate(e.id)}
                   >
-                    Post Update
+                    {t("postUpdate")}
                   </button>
                 </div>
               </>
@@ -520,3 +522,9 @@ export default function AdminPage() {
     </div>
   );
 }
+
+
+
+
+
+

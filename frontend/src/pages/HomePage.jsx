@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 import { getSafeImageUrl } from "../utils/imageUrl";
 import { isEventActive, isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
 const categories = ["Music", "Tech", "Sports", "Business", "Comedy", "Workshops"];
 
 export default function HomePage() {
+  const { language, t } = useLanguage();
   const [events, setEvents] = useState([]);
   const [recommendedEvents, setRecommendedEvents] = useState([]);
   const [trendingEvents, setTrendingEvents] = useState([]);
@@ -160,10 +162,10 @@ export default function HomePage() {
         {/* HERO */}
         <section className="discovery-hero flex items-center">
           <div>
-            <p className="eyebrow-text">Discover live experiences</p>
-            <h1>Find events worth showing up for.</h1>
+            <p className="eyebrow-text">{t("discoverLiveExperiences")}</p>
+            <h1>{t("heroTitle")}</h1>
             <p>
-              Search by category, location, date, price, and what people are booking most.
+              {t("heroSubtitle")}
             </p>
           </div>
         </section>
@@ -171,7 +173,7 @@ export default function HomePage() {
         {/* SEARCH */}
         <div className="search-box module16-search">
           <input
-            placeholder="Search events..."
+            placeholder={t("searchEvents")}
             value={filters.title}
             onChange={(e) => updateFilter("title", e.target.value)}
           />
@@ -180,14 +182,14 @@ export default function HomePage() {
             value={filters.category}
             onChange={(e) => updateFilter("category", e.target.value)}
           >
-            <option value="">All Categories</option>
+            <option value="">{t("allCategories")}</option>
             {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
 
           <input
-            placeholder="Location"
+            placeholder={t("location")}
             value={filters.location}
             onChange={(e) => updateFilter("location", e.target.value)}
           />
@@ -207,17 +209,17 @@ export default function HomePage() {
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
             <option value="date_asc">Date ↑</option>
             <option value="date_desc">Date ↓</option>
-            <option value="popularity">Popularity</option>
-            <option value="price_low">Price Low</option>
-            <option value="price_high">Price High</option>
+            <option value="popularity">{t("popularity")}</option>
+            <option value="price_low">{t("priceLow")}</option>
+            <option value="price_high">{t("priceHigh")}</option>
           </select>
 
           <div className="module16-action-group">
             <button className="admin-quick-link module16-search-btn" onClick={() => fetchEvents()}>
-              Search
+              {t("search")}
             </button>
             <button className="admin-nav-link module16-clear-btn" onClick={resetFilters}>
-              Clear
+              {t("clear")}
             </button>
           </div>
         </div>
@@ -228,27 +230,27 @@ export default function HomePage() {
             className={`admin-quick-link ${filterType === "ALL" ? "module16-active-btn" : ""}`}
             onClick={() => setFilterType("ALL")}
           >
-            All
+            {t("all")}
           </button>
           <button
             className={`admin-quick-link ${filterType === "ACTIVE" ? "module16-active-btn" : ""}`}
             onClick={() => setFilterType("ACTIVE")}
           >
-            Active
+            {t("active")}
           </button>
           <button
             className={`admin-quick-link ${filterType === "CANCELLED" ? "module16-active-btn" : ""}`}
             onClick={() => setFilterType("CANCELLED")}
           >
-            Cancelled
+            {t("cancelled")}
           </button>
         </div>
 
         {recommendedEvents.length > 0 && (
           <section className="recommendation-section">
             <div className="recommendation-heading">
-              <h2 className="section-title">Recommended for You</h2>
-              <span>{recommendedEvents.length} picks</span>
+              <h2 className="section-title">{t("recommendedForYou")}</h2>
+              <span>{recommendedEvents.length} {t("picks")}</span>
             </div>
             <div className="trending-carousel">
               {recommendedEvents.map(renderRecommendationCard)}
@@ -259,8 +261,8 @@ export default function HomePage() {
         {trendingEvents.length > 0 && (
           <section className="recommendation-section">
             <div className="recommendation-heading">
-              <h2 className="section-title">Trending Events</h2>
-              <span>Popular now</span>
+              <h2 className="section-title">{t("trendingEvents")}</h2>
+              <span>{t("popularNow")}</span>
             </div>
             <div className="trending-carousel">
               {trendingEvents.map(renderRecommendationCard)}
@@ -278,8 +280,8 @@ export default function HomePage() {
     ))
   ) : visibleEvents.length === 0 ? (
     <div className="card empty-state">
-      <h4>No events found</h4>
-      <p>Try changing filters</p>
+      <h4>{t("noEventsFound")}</h4>
+      <p>{t("tryChangingFilters")}</p>
     </div>
   ) : (
     visibleEvents.map((event) => {
@@ -297,10 +299,10 @@ export default function HomePage() {
               onClick={() => toggleWishlist(event.id)}
               aria-label={
                 isWishlisted
-                  ? `Remove ${event.title} from wishlist`
-                  : `Save ${event.title} to wishlist`
+                  ? t("removeFromWishlist", { title: event.title })
+                  : t("saveToWishlist", { title: event.title })
               }
-              title={isWishlisted ? "Remove from wishlist" : "Save event"}
+              title={isWishlisted ? t("removeFromWishlist", { title: event.title }) : t("saveEvent")}
             >
               {isWishlisted ? "\u2665" : "\u2661"}
             </button>
@@ -313,11 +315,11 @@ export default function HomePage() {
               </div>
             )}
 
-            {isExpired && <span className="expired-badge">Expired</span>}
-            {isCancelled && <span className="cancelled-badge">Cancelled</span>}
+            {isExpired && <span className="expired-badge">{t("expired")}</span>}
+            {isCancelled && <span className="cancelled-badge">{t("cancelled")}</span>}
 
             <span className="date-badge">
-              {new Date(event.event_date).toLocaleDateString("en-IN")}
+              {new Date(event.event_date).toLocaleDateString(language === "hi" ? "hi-IN" : "en-IN")}
             </span>
           </div>
 
@@ -327,10 +329,10 @@ export default function HomePage() {
           <h4>₹{event.ticket_price}</h4>
 
           {!isExpired && !isCancelled ? (
-            <Link to={`/events/${event.id}`}>View Details</Link>
+            <Link to={`/events/${event.id}`}>{t("viewDetails")}</Link>
           ) : (
             <span className="expired-text">
-              {isCancelled ? "Cancelled" : "Expired"}
+              {isCancelled ? t("cancelled") : t("expired")}
             </span>
           )}
         </div>
@@ -343,3 +345,6 @@ export default function HomePage() {
     </div>
   );
 }
+
+
+

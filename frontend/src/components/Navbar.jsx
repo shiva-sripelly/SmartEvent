@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
+import useTheme from "../context/useTheme";
 import API from "../api/axios";
 import { getSafeImageUrl } from "../utils/imageUrl";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+  const { isLightMode, toggleTheme } = useTheme();
+  const location = useLocation();
   const navigate = useNavigate();
   const notificationRef = useRef(null);
   const profileImage = getSafeImageUrl(user?.profile_picture);
@@ -22,6 +27,8 @@ export default function Navbar() {
   const handleCloseNotifications = () => {
     setShowNotifications(false);
   };
+
+  const getNavLinkClass = ({ isActive }) => (isActive ? "nav-link-active" : undefined);
 
   const fetchNotifications = async () => {
     if (!user) {
@@ -77,30 +84,58 @@ export default function Navbar() {
       </div>
 
       <div className="nav-links flex items-center gap-2">
-        <Link to="/">Home</Link>
-        <Link to="/wishlist">Wishlist</Link>
-        <Link to="/bookings">Bookings</Link>
-        <Link to="/tickets">Tickets</Link>
+        <NavLink to="/" end className={getNavLinkClass}>{t("navHome")}</NavLink>
+        <NavLink to="/wishlist" className={getNavLinkClass}>{t("navWishlist")}</NavLink>
+        <NavLink to="/bookings" className={getNavLinkClass}>{t("navBookings")}</NavLink>
+        <NavLink to="/tickets" className={getNavLinkClass}>{t("navTickets")}</NavLink>
+        <NavLink to="/referrals" className={getNavLinkClass}>{t("navReferrals")}</NavLink>
         {user ? (
-          <Link
+          <NavLink
             to="/profile"
-            className="nav-profile-avatar"
-            aria-label={`${user.username}'s profile`}
-            title={`${user.username}'s profile`}
+            className={({ isActive }) =>
+              `nav-profile-avatar${isActive ? " nav-link-active" : ""}`
+            }
+            aria-label={`${user.username} ${t("navProfile")}`}
+            title={`${user.username} ${t("navProfile")}`}
           >
             {profileImage ? (
               <img src={profileImage} alt={`${user.username} profile`} />
             ) : (
               <span className="default-profile-icon" aria-hidden="true"></span>
             )}
-          </Link>
+          </NavLink>
         ) : (
-          <Link to="/profile">Profile</Link>
+          <NavLink to="/profile" className={getNavLinkClass}>{t("navProfile")}</NavLink>
         )}
+
+        <label className="language-switcher">
+          <span>{t("languageLabel")}</span>
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+            aria-label={t("languageLabel")}
+          >
+            <option value="en">{t("languageEnglish")}</option>
+            <option value="hi">{t("languageHindi")}</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={isLightMode ? t("switchToDarkMode") : t("switchToLightMode")}
+          title={isLightMode ? t("switchToDarkMode") : t("switchToLightMode")}
+        >
+          <span aria-hidden="true">{isLightMode ? "☀" : "☾"}</span>
+          {isLightMode ? t("lightMode") : t("darkMode")}
+        </button>
 
         <div className="notification-menu" ref={notificationRef}>
           <button
-            className="notification-link notification-button"
+            className={`notification-link notification-button${
+              location.pathname === "/notifications" ? " nav-link-active" : ""
+            }`}
             type="button"
             onClick={handleToggleNotifications}
             aria-haspopup="menu"
@@ -117,16 +152,18 @@ export default function Navbar() {
             <div className="notification-dropdown" role="menu">
               <div className="notification-dropdown-header">
                 <div>
-                  <strong>Notifications</strong>
-                  <span>{unreadCount} unread</span>
+                  <strong>{t("navNotifications")}</strong>
+                  <span>
+                    {unreadCount} {t("navUnread")}
+                  </span>
                 </div>
                 <button type="button" onClick={handleCloseNotifications}>
-                  Close
+                  {t("navClose")}
                 </button>
               </div>
 
               {notifications.length === 0 ? (
-                <p>No notifications yet</p>
+                <p>{t("navNoNotifications")}</p>
               ) : (
                 notifications.map((item) => (
                   <Link
@@ -147,27 +184,34 @@ export default function Navbar() {
                 onClick={handleCloseNotifications}
                 role="menuitem"
               >
-                View all notifications
+                {t("navViewAllNotifications")}
               </Link>
             </div>
           )}
         </div>
 
-        {user && user.role === "ADMIN" && <Link to="/admin">Admin Panel</Link>}
+        {user && user.role === "ADMIN" && (
+          <NavLink to="/admin" className={getNavLinkClass}>{t("navAdminPanel")}</NavLink>
+        )}
 
         {user && user.role === "ORGANIZER" && (
-          <Link to="/organizer">Organizer Dashboard</Link>
+          <NavLink to="/organizer" className={getNavLinkClass}>{t("navOrganizerDashboard")}</NavLink>
         )}
 
         {user && (
           <>
-            <Link className="user-name" to="/profile">Hi, {user.username}</Link>
+            <NavLink
+              className={({ isActive }) => `user-name${isActive ? " nav-link-active" : ""}`}
+              to="/profile"
+            >
+              {t("navGreeting")}, {user.username}
+            </NavLink>
 
             <button
               onClick={handleLogout}
               className="ml-2 px-4 py-1.5 rounded-full border border-red-400/40 text-red-400 hover:bg-red-500/10 transition"
             >
-              Logout
+              {t("navLogout")}
             </button>
           </>
         )}
@@ -175,3 +219,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

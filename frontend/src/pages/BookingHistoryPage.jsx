@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 
 export default function BookingHistoryPage() {
+  const { t } = useLanguage();
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
@@ -23,15 +25,15 @@ export default function BookingHistoryPage() {
     <div className="page-container">
       <div className="page-header-row">
         <div>
-          <h2>My Bookings</h2>
-          <p className="subtle-text">Review your tickets, payment totals, and booking status.</p>
+          <h2>{t("myBookings")}</h2>
+          <p className="subtle-text">{t("bookingsSubtitle")}</p>
         </div>
       </div>
 
       {bookings.length === 0 ? (
         <div className="card empty-state">
-          <h4>No bookings yet</h4>
-          <p>Once a booking is created, it will appear here with status details.</p>
+          <h4>{t("noBookingsYet")}</h4>
+          <p>{t("bookingsEmptyHelp")}</p>
         </div>
       ) : (
         bookings.map((b) => {
@@ -50,8 +52,8 @@ export default function BookingHistoryPage() {
           <div className="card booking-card" key={b.id}>
             <div className="booking-card-header">
               <div>
-                <h4>Booking #{b.id}</h4>
-                <p className="category">Event ID: {b.event_id}</p>
+                <h4>{t("bookingNumber", { id: b.id })}</h4>
+                <p className="category">{t("eventId")}: {b.event_id}</p>
               </div>
               <span className={`status-pill ${bookingStatus.toLowerCase()}`}>
                 {bookingStatus}
@@ -60,19 +62,19 @@ export default function BookingHistoryPage() {
 
             <div className="booking-row">
               <div>
-                <p className="label">Tickets</p>
+                <p className="label">{t("tickets")}</p>
                 <strong>{b.ticket_quantity}</strong>
               </div>
               <div>
-                <p className="label">Subtotal</p>
+                <p className="label">{t("subtotal")}</p>
                 <strong>Rs.{b.total_price}</strong>
               </div>
               <div>
-                <p className="label">Discount</p>
+                <p className="label">{t("discount")}</p>
                 <strong>Rs.{b.discount_amount || 0}</strong>
               </div>
               <div>
-                <p className="label">Final Paid</p>
+                <p className="label">{t("finalPaid")}</p>
                 <strong>Rs.{b.final_amount ?? b.total_price}</strong>
               </div>
             </div>
@@ -83,3 +85,7 @@ export default function BookingHistoryPage() {
     </div>
   );
 }
+
+
+
+

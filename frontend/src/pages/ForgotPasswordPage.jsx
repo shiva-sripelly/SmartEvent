@@ -1,7 +1,9 @@
 import { useState } from "react";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 
 export default function ForgotPasswordPage() {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     email: "",
     confirmEmail: "",
@@ -17,7 +19,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
 
     if (form.email !== form.confirmEmail) {
-      setMessage("Emails do not match");
+      setMessage(t("emailsDoNotMatch"));
       return;
     }
 
@@ -27,21 +29,21 @@ export default function ForgotPasswordPage() {
         confirm_email: form.confirmEmail,
       });
 
-      setMessage("Password reset instructions sent to your email.");
+      setMessage(t("resetInstructionsSent"));
     } catch (err) {
-      setMessage(err.response?.data?.detail || "Reset request failed");
+      setMessage(err.response?.data?.detail || t("resetRequestFailed"));
     }
   };
 
   return (
     <div className="auth-container">
-      <h2>Forgot Password</h2>
+      <h2>{t("forgotPasswordTitle")}</h2>
 
       <form onSubmit={handleReset}>
         <input
           type="email"
           name="email"
-          placeholder="Enter Email"
+          placeholder={t("enterEmail")}
           value={form.email}
           onChange={handleChange}
           required
@@ -50,16 +52,18 @@ export default function ForgotPasswordPage() {
         <input
           type="email"
           name="confirmEmail"
-          placeholder="Confirm Email"
+          placeholder={t("confirmEmail")}
           value={form.confirmEmail}
           onChange={handleChange}
           required
         />
 
-        <button type="submit">Click Here to Reset</button>
+        <button type="submit">{t("clickHereToReset")}</button>
       </form>
 
       {message && <p className="success-message">{message}</p>}
     </div>
  );
 }
+
+

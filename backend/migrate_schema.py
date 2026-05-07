@@ -116,6 +116,164 @@ def run_migration() -> None:
         else:
             print("reviews table already exists")
 
+        if not table_exists("referrals"):
+            print("Creating referrals table...")
+            connection.execute(text("""
+                CREATE TABLE referrals (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    referrer_id INT NOT NULL,
+                    referred_user_id INT NOT NULL,
+                    referral_code VARCHAR(20) NOT NULL,
+                    status VARCHAR(20) DEFAULT 'SUCCESS',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_referral_referred_user UNIQUE (referred_user_id),
+                    FOREIGN KEY (referrer_id) REFERENCES users(id),
+                    FOREIGN KEY (referred_user_id) REFERENCES users(id)
+                )
+            """))
+        else:
+            print("referrals table already exists")
+
+        if not table_exists("rewards"):
+            print("Creating rewards table...")
+            connection.execute(text("""
+                CREATE TABLE rewards (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    source_type VARCHAR(30) NOT NULL,
+                    source_id INT NOT NULL,
+                    points INT NOT NULL,
+                    description VARCHAR(255),
+                    booking_id INT NULL,
+                    review_id INT NULL,
+                    referral_id INT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_reward_source UNIQUE (user_id, source_type, source_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (booking_id) REFERENCES bookings(id),
+                    FOREIGN KEY (review_id) REFERENCES reviews(id),
+                    FOREIGN KEY (referral_id) REFERENCES referrals(id)
+                )
+            """))
+        else:
+            print("rewards table already exists")
+
+        print("Backfilling referrals from users.referred_by_id...")
+        connection.execute(text("""
+            INSERT INTO referrals (
+                referrer_id,
+                referred_user_id,
+                referral_code,
+                status,
+                created_at
+            )
+            SELECT
+                referrer.id,
+                referred.id,
+                COALESCE(referrer.referral_code, ''),
+                'SUCCESS',
+                referred.created_at
+            FROM users referred
+            JOIN users referrer ON referrer.id = referred.referred_by_id
+            WHERE referred.referred_by_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM referrals existing
+                  WHERE existing.referred_user_id = referred.id
+              )
+        """))
+
+        print("Backfilling booking rewards...")
+        connection.execute(text("""
+            INSERT INTO rewards (
+                user_id,
+                source_type,
+                source_id,
+                points,
+                description,
+                booking_id,
+                created_at
+            )
+            SELECT
+                bookings.user_id,
+                'BOOKING',
+                bookings.id,
+                10,
+                'Reward for confirmed booking',
+                bookings.id,
+                bookings.created_at
+            FROM bookings
+            WHERE bookings.booking_status = 'CONFIRMED'
+              AND bookings.user_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM rewards existing
+                  WHERE existing.user_id = bookings.user_id
+                    AND existing.source_type = 'BOOKING'
+                    AND existing.source_id = bookings.id
+              )
+        """))
+
+        print("Backfilling review rewards...")
+        connection.execute(text("""
+            INSERT INTO rewards (
+                user_id,
+                source_type,
+                source_id,
+                points,
+                description,
+                review_id,
+                created_at
+            )
+            SELECT
+                reviews.user_id,
+                'REVIEW',
+                reviews.id,
+                5,
+                'Reward for event review',
+                reviews.id,
+                reviews.created_at
+            FROM reviews
+            WHERE reviews.user_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM rewards existing
+                  WHERE existing.user_id = reviews.user_id
+                    AND existing.source_type = 'REVIEW'
+                    AND existing.source_id = reviews.id
+              )
+        """))
+
+        print("Backfilling referral rewards...")
+        connection.execute(text("""
+            INSERT INTO rewards (
+                user_id,
+                source_type,
+                source_id,
+                points,
+                description,
+                referral_id,
+                created_at
+            )
+            SELECT
+                referrals.referrer_id,
+                'REFERRAL',
+                referrals.id,
+                20,
+                'Reward for successful referral',
+                referrals.id,
+                referrals.created_at
+            FROM referrals
+            WHERE referrals.status = 'SUCCESS'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM rewards existing
+                  WHERE existing.user_id = referrals.referrer_id
+                    AND existing.source_type = 'REFERRAL'
+                    AND existing.source_id = referrals.id
+              )
+        """))
+
         if not table_exists("user_event_views"):
             print("Creating user_event_views table...")
             connection.execute(text("""

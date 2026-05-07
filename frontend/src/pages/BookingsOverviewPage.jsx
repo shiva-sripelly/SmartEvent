@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 import API from "../api/axios";
 
 export default function BookingsOverviewPage() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
@@ -13,7 +15,7 @@ export default function BookingsOverviewPage() {
       const response = await API.get("/admin/all-bookings");
       setBookings(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || "Unable to load bookings.");
+      setError(err.response?.data?.detail || t("bookingsLoadFailed"));
     }
   };
 
@@ -24,28 +26,28 @@ export default function BookingsOverviewPage() {
   }, [loading, user]);
 
   if (loading || !user) {
-    return <h2 className="loading">Loading bookings...</h2>;
+    return <h2 className="loading">{t("loadingBookings")}</h2>;
   }
 
   return (
     <div className="page-container">
       <div className="admin-header admin-header-compact">
         <div>
-          <h2>Booking Overview</h2>
-          <p className="admin-greeting">Review booking activity across the platform.</p>
+          <h2>{t("bookingOverview")}</h2>
+          <p className="admin-greeting">{t("bookingOverviewSubtitle")}</p>
         </div>
         <div className="admin-action-group">
           <Link className="admin-nav-link" to="/admin">
-            Dashboard
+            {t("dashboard")}
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
-            Analytics
+            {t("platformAnalytics")}
           </Link>
           <Link className="admin-nav-link" to="/admin/users">
-            Users
+            {t("users")}
           </Link>
           <Link className="admin-nav-link" to="/admin/events">
-            Events
+            {t("events")}
           </Link>
         </div>
       </div>
@@ -53,17 +55,17 @@ export default function BookingsOverviewPage() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="overview-card">
-        <h3>All Bookings</h3>
+        <h3>{t("allBookings")}</h3>
         <div className="overview-table-container">
           <table className="overview-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>User ID</th>
-                <th>Event ID</th>
-                <th>Tickets</th>
-                <th>Revenue</th>
-                <th>Status</th>
+                <th>{t("id")}</th>
+                <th>{t("userId")}</th>
+                <th>{t("eventId")}</th>
+                <th>{t("tickets")}</th>
+                <th>{t("revenue")}</th>
+                <th>{t("status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -80,7 +82,7 @@ export default function BookingsOverviewPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No bookings found.</td>
+                  <td colSpan="6">{t("noBookingsFound")}</td>
                 </tr>
               )}
             </tbody>
@@ -90,3 +92,6 @@ export default function BookingsOverviewPage() {
     </div>
   );
 }
+
+
+

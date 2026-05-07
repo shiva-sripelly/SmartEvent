@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../api/axios";
+import useLanguage from "../context/useLanguage";
 import { getSafeImageUrl } from "../utils/imageUrl";
 import { isEventCancelled, isEventExpired, isEventUnavailable } from "../utils/eventStatus";
 
 export default function WishlistPage() {
+  const { language, t } = useLanguage();
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,9 +34,9 @@ export default function WishlistPage() {
       <section className="events-main w-full max-w-[1400px] mx-auto">
         <div className="page-header-row">
           <div>
-            <h2>My Wishlist</h2>
+            <h2>{t("myWishlist")}</h2>
             <p className="subtle-text">
-              Save events now and jump back into booking whenever you are ready.
+              {t("wishlistSubtitle")}
             </p>
           </div>
         </div>
@@ -49,8 +51,8 @@ export default function WishlistPage() {
           </div>
         ) : wishlist.length === 0 ? (
           <div className="card empty-state">
-            <h4>No saved events yet</h4>
-            <p>Tap the heart on an event card to keep it here for later.</p>
+            <h4>{t("noSavedEvents")}</h4>
+            <p>{t("wishlistEmptyHelp")}</p>
           </div>
         ) : (
           <div className="premium-event-grid">
@@ -68,8 +70,8 @@ export default function WishlistPage() {
                       type="button"
                       className="wishlist-button saved"
                       onClick={() => removeFromWishlist(event.id)}
-                      aria-label={`Remove ${event.title} from wishlist`}
-                      title="Remove from wishlist"
+                      aria-label={t("removeFromWishlist", { title: event.title })}
+                      title={t("removeFromWishlist", { title: event.title })}
                     >
                       {"\u2665"}
                     </button>
@@ -82,13 +84,13 @@ export default function WishlistPage() {
                       </div>
                     )}
 
-                    {isExpired && <span className="expired-badge">Expired</span>}
+                    {isExpired && <span className="expired-badge">{t("expired")}</span>}
                     {isCancelled && (
-                      <span className="cancelled-badge">Cancelled</span>
+                      <span className="cancelled-badge">{t("cancelled")}</span>
                     )}
 
                     <span className="date-badge">
-                      {new Date(event.event_date).toLocaleDateString("en-IN")}
+                      {new Date(event.event_date).toLocaleDateString(language === "hi" ? "hi-IN" : "en-IN")}
                     </span>
                   </div>
 
@@ -99,10 +101,10 @@ export default function WishlistPage() {
 
                   <div className="wishlist-card-actions">
                     {!isUnavailable ? (
-                      <Link to={`/events/${event.id}`}>Book Now</Link>
+                      <Link to={`/events/${event.id}`}>{t("bookNow")}</Link>
                     ) : (
                       <span className="expired-text">
-                        {isCancelled ? "Cancelled" : "Expired"}
+                        {isCancelled ? t("cancelled") : t("expired")}
                       </span>
                     )}
 
@@ -111,7 +113,7 @@ export default function WishlistPage() {
                       className="ghost-btn"
                       onClick={() => removeFromWishlist(event.id)}
                     >
-                      Remove
+                      {t("remove")}
                     </button>
                   </div>
                 </div>
@@ -123,3 +125,8 @@ export default function WishlistPage() {
     </div>
   );
 }
+
+
+
+
+

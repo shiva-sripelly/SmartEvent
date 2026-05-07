@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import LanguageProvider from "./context/LanguageProvider";
+import ThemeProvider from "./context/ThemeProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import ChatbotWidget from "./components/ChatbotWidget";
@@ -15,6 +17,7 @@ import PaymentCheckoutPage from "./pages/PaymentCheckoutPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import WishlistPage from "./pages/WishlistPage";
 import ProfilePage from "./pages/ProfilePage";
+import ReferralPage from "./pages/ReferralPage";
 import AdminPage from "./pages/AdminPage";
 import OrganizerPage from "./pages/OrganizerPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
@@ -50,8 +53,10 @@ function AppLayout({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -121,6 +126,17 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <ProfilePage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/referrals"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ReferralPage />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -212,8 +228,10 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </AuthProvider>
+            </Routes>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

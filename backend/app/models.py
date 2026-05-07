@@ -11,8 +11,23 @@ class User(Base):
     email = Column(String(150), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     profile_picture = Column(String(255), nullable=True)
+    referral_code = Column(String(20), nullable=True, index=True)
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     role = Column(String(20), nullable=False, default="USER")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    referrals_made = relationship(
+        "Referral",
+        foreign_keys="Referral.referrer_id",
+        back_populates="referrer",
+    )
+    referred_by = relationship(
+        "Referral",
+        foreign_keys="Referral.referred_user_id",
+        back_populates="referred_user",
+        uselist=False,
+    )
+    rewards = relationship("Reward", back_populates="user")
 
 class Event(Base):
     __tablename__ = "events"
@@ -93,6 +108,7 @@ class Booking(Base):
     user = relationship("User")
     event = relationship("Event")
     coupon = relationship("Coupon")
+    rewards = relationship("Reward", back_populates="booking")
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -161,3 +177,53 @@ class Review(Base):
 
     user = relationship("User")
     event = relationship("Event")
+    rewards = relationship("Reward", back_populates="review")
+
+
+class Referral(Base):
+    __tablename__ = "referrals"
+    __table_args__ = (
+        UniqueConstraint("referred_user_id", name="uq_referral_referred_user"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    referrer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referred_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referral_code = Column(String(20), nullable=False)
+    status = Column(String(20), default="SUCCESS")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    referrer = relationship(
+        "User",
+        foreign_keys=[referrer_id],
+        back_populates="referrals_made",
+    )
+    referred_user = relationship(
+        "User",
+        foreign_keys=[referred_user_id],
+        back_populates="referred_by",
+    )
+    rewards = relationship("Reward", back_populates="referral")
+
+
+class Reward(Base):
+    __tablename__ = "rewards"
+    __table_args__ = (
+        UniqueConstraint("user_id", "source_type", "source_id", name="uq_reward_source"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    source_type = Column(String(30), nullable=False)
+    source_id = Column(Integer, nullable=False)
+    points = Column(Integer, nullable=False)
+    description = Column(String(255), nullable=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True)
+    review_id = Column(Integer, ForeignKey("reviews.id"), nullable=True)
+    referral_id = Column(Integer, ForeignKey("referrals.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="rewards")
+    booking = relationship("Booking", back_populates="rewards")
+    review = relationship("Review", back_populates="rewards")
+    referral = relationship("Referral", back_populates="rewards")

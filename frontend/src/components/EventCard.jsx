@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import useLanguage from "../context/useLanguage";
 import { getSafeImageUrl } from "../utils/imageUrl";
 import { isEventCancelled, isEventExpired } from "../utils/eventStatus";
 
 export default function EventCard({ event }) {
+  const { language, t } = useLanguage();
   const isExpired = isEventExpired(event);
   const isCancelled = isEventCancelled(event);
   const bannerImage =
@@ -14,11 +16,11 @@ export default function EventCard({ event }) {
       <div className="poster-wrap">
         <img src={bannerImage} alt={event.title} />
 
-        {isExpired && <span className="expired-badge">Expired</span>}
-        {isCancelled && <span className="cancelled-badge">Cancelled</span>}
+        {isExpired && <span className="expired-badge">{t("expired")}</span>}
+        {isCancelled && <span className="cancelled-badge">{t("cancelled")}</span>}
 
         <span className="date-badge">
-          {new Date(event.event_date).toLocaleDateString("en-IN", {
+          {new Date(event.event_date).toLocaleDateString(language === "hi" ? "hi-IN" : "en-IN", {
             weekday: "short",
             day: "numeric",
             month: "short",
@@ -29,15 +31,17 @@ export default function EventCard({ event }) {
       <h3>{event.title}</h3>
       <p className="venue">{event.location}</p>
       <p className="category">{event.category}</p>
-      <h4>₹{event.ticket_price} onwards</h4>
+      <h4>₹{event.ticket_price} {t("onwards")}</h4>
 
       {!isExpired && !isCancelled ? (
-        <Link to={`/events/${event.id}`}>View Details</Link>
+        <Link to={`/events/${event.id}`}>{t("viewDetails")}</Link>
       ) : (
         <span className="expired-text">
-          {isCancelled ? "Cancelled" : "Expired"}
+          {isCancelled ? t("cancelled") : t("expired")}
         </span>
       )}
     </div>
   );
 }
+
+

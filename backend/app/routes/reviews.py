@@ -8,6 +8,7 @@ from app.core.security import get_current_user
 from app.database import get_db
 from app.models import Booking, Event, Review, User
 from app.schemas import ReviewCreate, ReviewResponse, ReviewUpdate
+from app.utils.rewards import REVIEW_REWARD_POINTS, award_reward
 
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
@@ -66,6 +67,16 @@ def submit_review(
     db.add(new_review)
     db.commit()
     db.refresh(new_review)
+    award_reward(
+        db,
+        user_id=current_user.id,
+        source_type="REVIEW",
+        source_id=new_review.id,
+        points=REVIEW_REWARD_POINTS,
+        description="Reward for event review",
+        review_id=new_review.id,
+    )
+    db.commit()
     return serialize_review(new_review)
 
 

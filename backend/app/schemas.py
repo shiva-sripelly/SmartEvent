@@ -6,6 +6,7 @@ class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: Annotated[str, Field(min_length=6, max_length=72)]
+    referral_code: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -18,6 +19,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
     profile_picture: Optional[str] = None
+    referral_code: Optional[str] = None
 
     class Config:
         from_attributes = True

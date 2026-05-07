@@ -37,8 +37,13 @@ export function AuthProvider({ children }) {
     return await fetchProfile();
   };
 
-  const register = async (username, email, password) => {
-    await API.post("/auth/register", { username, email, password });
+  const register = async (username, email, password, referralCode = "") => {
+    await API.post("/auth/register", {
+      username,
+      email,
+      password,
+      referral_code: referralCode || null,
+    });
   };
 
   const logout = () => {

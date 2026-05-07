@@ -7,7 +7,8 @@ from fastapi.staticfiles import StaticFiles  # pyright: ignore[reportMissingImpo
 from pathlib import Path
 from sqlalchemy import inspect, text
 from app.utils.reminder import start_reminder_scheduler
-from app.models import Event
+from app.models import Event, User
+from uuid import uuid4
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,9 +22,36 @@ def ensure_profile_columns():
             connection.execute(
                 text("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255)")
             )
+        if "referral_code" not in user_columns:
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN referral_code VARCHAR(20)")
+            )
+        if "referred_by_id" not in user_columns:
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN referred_by_id INTEGER")
+            )
+
+
+def ensure_referral_codes():
+    db = SessionLocal()
+    try:
+        users_without_codes = db.query(User).filter(User.referral_code.is_(None)).all()
+
+        for user in users_without_codes:
+            while True:
+                code = f"SE{uuid4().hex[:8].upper()}"
+                exists = db.query(User).filter(User.referral_code == code).first()
+                if not exists:
+                    user.referral_code = code
+                    break
+
+        db.commit()
+    finally:
+        db.close()
 
 
 ensure_profile_columns()
+ensure_referral_codes()
 
 app = FastAPI(title="SmartEvent API")
 

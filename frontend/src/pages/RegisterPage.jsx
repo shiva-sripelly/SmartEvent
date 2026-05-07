@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 
 export default function RegisterPage() {
+  const { t } = useLanguage();
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -10,6 +12,7 @@ export default function RegisterPage() {
     username: "",
     email: "",
     password: "",
+    referralCode: "",
   });
 
   const handleChange = (e) => {
@@ -19,23 +22,23 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await register(form.username, form.email, form.password);
-      alert("Registered successfully");
+      await register(form.username, form.email, form.password, form.referralCode);
+      alert(t("registeredSuccessfully"));
       navigate("/login");
     } catch {
-      alert("Registration failed");
+      alert(t("registrationFailed"));
     }
   };
 
   return (
     <div className="auth-container">
-      <h2>Register</h2>
+      <h2>{t("register")}</h2>
 
       <form onSubmit={handleSubmit}>
         <input
           type="text"
           name="username"
-          placeholder="Enter Username"
+          placeholder={t("enterUsername")}
           onChange={handleChange}
           required
         />
@@ -43,7 +46,7 @@ export default function RegisterPage() {
         <input
           type="email"
           name="email"
-          placeholder="Enter Email"
+          placeholder={t("enterEmail")}
           onChange={handleChange}
           required
         />
@@ -51,12 +54,19 @@ export default function RegisterPage() {
         <input
           type="password"
           name="password"
-          placeholder="Enter Password"
+          placeholder={t("enterPassword")}
           onChange={handleChange}
           required
         />
 
-        <button type="submit">Register</button>
+        <input
+          type="text"
+          name="referralCode"
+          placeholder={t("referralCodeOptional")}
+          onChange={handleChange}
+        />
+
+        <button type="submit">{t("register")}</button>
       </form>
 
       <button
@@ -64,8 +74,10 @@ export default function RegisterPage() {
         className="secondary-button"
         onClick={() => navigate("/login")}
       >
-        Already have an account? Login
+        {t("alreadyHaveAccount")}
       </button>
     </div>
   );
 }
+
+

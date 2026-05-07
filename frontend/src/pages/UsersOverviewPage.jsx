@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import useLanguage from "../context/useLanguage";
 import API from "../api/axios";
 
 export default function UsersOverviewPage() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
@@ -13,7 +15,7 @@ export default function UsersOverviewPage() {
       const response = await API.get("/admin/users");
       setUsers(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || "Unable to load users.");
+      setError(err.response?.data?.detail || t("usersLoadFailed"));
     }
   };
 
@@ -24,28 +26,28 @@ export default function UsersOverviewPage() {
   }, [loading, user]);
 
   if (loading || !user) {
-    return <h2 className="loading">Loading users...</h2>;
+    return <h2 className="loading">{t("loadingUsers")}</h2>;
   }
 
   return (
     <div className="page-container">
       <div className="admin-header admin-header-compact">
         <div>
-          <h2>Users Overview</h2>
-          <p className="admin-greeting">Manage registered users and account roles.</p>
+          <h2>{t("usersOverview")}</h2>
+          <p className="admin-greeting">{t("usersOverviewSubtitle")}</p>
         </div>
         <div className="admin-action-group">
           <Link className="admin-nav-link" to="/admin">
-            Dashboard
+            {t("dashboard")}
           </Link>
           <Link className="admin-nav-link" to="/admin/analytics">
-            Analytics
+            {t("platformAnalytics")}
           </Link>
           <Link className="admin-nav-link" to="/admin/events">
-            Events
+            {t("events")}
           </Link>
           <Link className="admin-nav-link" to="/admin/bookings">
-            Bookings
+            {t("bookings")}
           </Link>
         </div>
       </div>
@@ -53,15 +55,15 @@ export default function UsersOverviewPage() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="overview-card">
-        <h3>Registered Users</h3>
+        <h3>{t("registeredUsers")}</h3>
         <div className="overview-table-container">
           <table className="overview-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
+                <th>{t("id")}</th>
+                <th>{t("username")}</th>
+                <th>{t("email")}</th>
+                <th>{t("role")}</th>
               </tr>
             </thead>
             <tbody>
@@ -76,7 +78,7 @@ export default function UsersOverviewPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4">No users found.</td>
+                  <td colSpan="4">{t("noUsersFound")}</td>
                 </tr>
               )}
             </tbody>
@@ -86,3 +88,6 @@ export default function UsersOverviewPage() {
     </div>
   );
 }
+
+
+

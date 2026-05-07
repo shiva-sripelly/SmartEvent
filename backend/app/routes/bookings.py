@@ -11,6 +11,7 @@ from app.utils.event_status import expire_past_events, is_event_bookable
 from app.utils.qr import generate_qr_code
 from app.utils.email import send_email
 from app.utils.connection_manager import manager
+from app.utils.rewards import BOOKING_REWARD_POINTS, award_reward
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -173,6 +174,17 @@ async def book_ticket(
     db.add(new_booking)
     db.commit()
     db.refresh(new_booking)
+
+    award_reward(
+        db,
+        user_id=current_user.id,
+        source_type="BOOKING",
+        source_id=new_booking.id,
+        points=BOOKING_REWARD_POINTS,
+        description=f"Reward for booking {event.title}",
+        booking_id=new_booking.id,
+    )
+    db.commit()
 
     await manager.broadcast_availability(
         event_id=event.id,
